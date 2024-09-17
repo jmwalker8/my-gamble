@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
-import { auth } from './firebase.js';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
 import SignUp from './sign_up.js';
 import './dashboard.css';
 
@@ -166,10 +165,38 @@ const Dashboard = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const user = userCredential.user;
       setLoginError('');
-      // The admin status will be set in the onAuthStateChanged listener
+      
+      // Find the member with the matching email
+      const loggedInMember = members.find(m => m.email === user.email);
+      
+      if (loggedInMember) {
+        setCurrentMember(loggedInMember);
+        setIsLoggedIn(true);
+        setUserVote(votes[loggedInMember.id] || '');
+        setVoteSubmitted(!!votes[loggedInMember.id]);
+      } else if (user.email === 'jmicaw318@gmail.com') {
+        setIsAdmin(true);
+        setIsLoggedIn(true);
+      } else {
+        // If the user is not in our members list, we might want to add them
+        const newMember = {
+          id: members.length + 1,
+          name: user.displayName || 'New Member',
+          email: user.email,
+          currency: STARTING_BALANCE,
+          transactions: [],
+          achievements: [],
+          lastPlayedGames: {}
+        };
+        setMembers(prevMembers => [...prevMembers, newMember]);
+        setCurrentMember(newMember);
+        setIsLoggedIn(true);
+      }
     } catch (error) {
+      console.error('Error logging in:', error);
       setLoginError('Invalid credentials');
     }
   };
@@ -382,15 +409,12 @@ const Dashboard = () => {
       // You might want to save the new member to your backend/database here
   
     } catch (error) {
-      if (error.code === 'auth/email-already-in-use') {
-        console.error('Error signing up: Email already in use');
-        // You might want to show this error to the user
-      } else {
-        console.error('Error signing up:', error);
-      }
+      console.error('Error signing up:', error);
       // You might want to show a general error message to the user here
+      throw error; // Rethrow the error so it can be caught in the SignUp component
     }
   };
+  
 
   // Admin functions
   const resetMemberCurrency = (memberId) => {
