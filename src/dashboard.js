@@ -122,7 +122,9 @@ const Dashboard = () => {
           setIsLoggedIn(true);
           setUserVote(votes[member.id] || '');
           setVoteSubmitted(!!votes[member.id]);
-        } else if (user.email === adminCredentials.email) {
+        }
+        // Check if the logged-in user is the admin
+        if (user.email === 'jmicaw318@gmail.com') {
           setIsAdmin(true);
           setIsLoggedIn(true);
         }
@@ -135,7 +137,7 @@ const Dashboard = () => {
     });
 
     return () => unsubscribe();
-  }, [members, votes, adminCredentials.email]);
+  }, [members, votes]);
 
   useEffect(() => {
     localStorage.setItem('gamblingClubMembers', JSON.stringify(members));
@@ -166,6 +168,7 @@ const Dashboard = () => {
     try {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setLoginError('');
+      // The admin status will be set in the onAuthStateChanged listener
     } catch (error) {
       setLoginError('Invalid credentials');
     }
