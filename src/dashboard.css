@@ -1,0 +1,514 @@
+.dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+  .dashboard-title {
+    color: #333;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .toggle-button {
+    display: block;
+    margin: 0 auto 20px;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .toggle-button:hover {
+    background-color: #45a049;
+  }
+  
+  .admin-view, .member-view {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .admin-controls h2, .member-stats h2, .leaderboard h2 {
+    color: #333;
+    margin-bottom: 15px;
+  }
+  
+  .member-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  
+  .member-table th, .member-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+  }
+  
+  .member-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  
+  .member-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .member-table button {
+    padding: 5px 10px;
+    background-color: #008CBA;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  
+  .member-table button:hover {
+    background-color: #007B9A;
+  }
+  
+  .currency-update {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+  }
+  
+  .currency-update input {
+    padding: 10px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .currency-update button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .currency-update button:hover {
+    background-color: #45a049;
+  }
+  
+  .member-stats {
+    background-color: #e9f7ef;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .leaderboard {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .game-button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  
+  .game-button:hover {
+    background-color: #45a049;
+  }
+  
+  .game-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+  
+  .game-modal h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+  }
+  
+  .game-modal button {
+    margin: 5px;
+    padding: 8px 12px;
+    background-color: #008CBA;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .game-modal button:hover {
+    background-color: #007B9A;
+  }
+  
+  .game-modal button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .game-modal input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .lottery-info {
+    background-color: #e9f7ef;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .lottery-info h2 {
+    color: #333;
+    margin-top: 0;
+  }
+  
+  .lottery-button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  
+  .lottery-button:hover {
+    background-color: #45a049;
+  }
+  
+  .admin-view .lottery-control {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e9f7ef;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .admin-view .lottery-control button {
+    margin-right: 10px;
+    padding: 8px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .admin-view .lottery-control button:hover {
+    background-color: #45a049;
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  .action-buttons button {
+    flex: 1;
+    margin: 0 10px;
+  }
+  
+  .voting-form {
+    margin-top: 20px;
+  }
+  
+  .vote-option {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  
+  .vote-option input[type="radio"] {
+    margin-right: 10px;
+  }
+  
+  .modal {
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+  }
+  
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+  }
+  
+  .modal-content h3 {
+    margin-top: 0;
+  }
+  
+  .modal-content ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .modal-content li {
+    margin-bottom: 10px;
+  }
+  
+  .modal-content button {
+    display: block;
+    margin-top: 20px;
+  }
+  
+  /* Responsive design adjustments */
+  @media (max-width: 768px) {
+    .game-modal {
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+  
+    .admin-view .lottery-control button {
+      margin-bottom: 10px;
+      width: 100%;
+    }
+  }
+
+  .transactions, .achievements {
+    margin-top: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .transactions ul, .achievements ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .transactions li, .achievements li {
+    margin-bottom: 10px;
+    padding: 5px;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .achievements .achieved {
+    color: #4CAF50;
+    font-weight: bold;
+  }
+  
+  .leaderboard {
+    margin-top: 20px;
+  }
+
+  /* Add these styles to your existing Dashboard.css */
+
+.login-container {
+    max-width: 300px;
+    margin: 100px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .login-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .login-container form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .login-container input {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .login-container button {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .login-container button:hover {
+    background-color: #45a049;
+  }
+  
+  .error {
+    color: red;
+    text-align: center;
+    margin-top: 10px;
+  }
+  
+  .logout-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .logout-button:hover {
+    background-color: #d32f2f;
+  }
+
+  .signup-container {
+    max-width: 300px;
+    margin: 100px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .signup-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .signup-container form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .signup-container input {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .signup-container button {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  
+  .signup-container button:last-child {
+    background-color: #f44336;
+  }
+  
+  .signup-container button:hover {
+    opacity: 0.8;
+  }
+  
+  .signup-button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  
+  .signup-button:hover {
+    background-color: #1976D2;
+  }
+
+  .voting-form {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+  }
+  
+  .voting-form h3 {
+    margin-top: 0;
+  }
+  
+  .voting-form form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .voting-form label {
+    margin-left: 10px;
+  }
+  
+  .voting-form button {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .poll-control, .poll-results {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #e0e0e0;
+    border-radius: 8px;
+  }
+  
+  .poll-control input {
+    width: 100%;
+    padding: 5px;
+    margin-top: 10px;
+  }
+  
+  .poll-results div {
+    margin: 5px 0;
+  }
+  
+  @media (max-width: 768px) {
+    .currency-update {
+      flex-direction: column;
+    }
+  
+    .currency-update input {
+      margin-right: 0;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+  
+    .currency-update button {
+      width: 100%;
+    }
+  }
