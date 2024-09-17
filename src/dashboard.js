@@ -292,15 +292,15 @@ const Dashboard = () => {
         : member
     ));
     if (currentMember && memberId === currentMember.id) {
-      setCurrentMember(prevMember => {
-        const loggedInMember = members.find(m => m.email === newUser.email);
+      setMembers(prevMembers => {
+        const updatedMembers = [...prevMembers, newMember];
+        const loggedInMember = updatedMembers.find(m => m.email === newMember.email);
         if (loggedInMember) {
           setIsLoggedIn(true);
           setUserVote(votes[loggedInMember.id] || '');
           setVoteSubmitted(!!votes[loggedInMember.id]);
-          return loggedInMember;
         }
-        return prevMember;
+        return updatedMembers;
       });
     }
     checkAchievements(memberId);
