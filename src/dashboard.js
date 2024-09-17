@@ -10,11 +10,16 @@ const LOTTERY_DRAW_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
 const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
 const CURRENCY_NAME = 'GambleCoins';
 
-const initialMembers = [
-  { id: 1, name: 'Alice', email: 'alice@example.com', password: 'password123', currency: STARTING_BALANCE, transactions: [], achievements: [], lastPlayedGames: {} },
-  { id: 2, name: 'Bob', email: 'bob@example.com', password: 'password456', currency: STARTING_BALANCE, transactions: [], achievements: [], lastPlayedGames: {} },
-  { id: 3, name: 'Charlie', email: 'charlie@example.com', password: 'password789', currency: STARTING_BALANCE, transactions: [], achievements: [], lastPlayedGames: {} },
-];
+// Parse initial members from environment variable
+const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]').map(member => ({
+  ...member,
+  currency: STARTING_BALANCE,
+  transactions: [],
+  achievements: [],
+  lastPlayedGames: {}
+}));
+
+const adminCredentials = JSON.parse(process.env.REACT_APP_ADMIN_CREDENTIALS || '{}');
 
 const achievements = [
   { id: 1, name: 'High Roller', description: 'Reach 2000 currency', threshold: 2000 },
@@ -71,6 +76,11 @@ const Dashboard = () => {
   const [userVote, setUserVote] = useState('');
   const [voteSubmitted, setVoteSubmitted] = useState(false);
   const [showTicketsModal, setShowTicketsModal] = useState(false);
+  const [firstPlacePrize, setFirstPlacePrize] = useState(1000);
+  const [nextPollReset, setNextPollReset] = useState(() => {
+    const savedResetTime = localStorage.getItem('gamblingClubNextPollReset');
+    return savedResetTime ? Number(savedResetTime) : new Date().setHours(24, 0, 0, 0); // Midnight tonight
+  });
 
   useEffect(() => {
     // Check for existing session on component mount
@@ -88,8 +98,17 @@ const Dashboard = () => {
       }
     }, 60000); // Check every minute
 
-    return () => clearInterval(lotteryTimer);
-  }, [nextLotteryDraw]);
+    const pollResetTimer = setInterval(() => {
+      if (Date.now() >= nextPollReset) {
+        resetPoll();
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      clearInterval(lotteryTimer);
+      clearInterval(pollResetTimer);
+    };
+  }, [nextLotteryDraw, nextPollReset]);
 
   useEffect(() => {
     localStorage.setItem('gamblingClubMembers', JSON.stringify(members));
@@ -111,9 +130,13 @@ const Dashboard = () => {
     localStorage.setItem('gamblingClubVotes', JSON.stringify(votes));
   }, [votes]);
 
+  useEffect(() => {
+    localStorage.setItem('gamblingClubNextPollReset', nextPollReset.toString());
+  }, [nextPollReset]);
+
   const handleLogin = (e) => {
     e.preventDefault();
-    if (loginEmail === 'admin@gmail.com' && loginPassword === 'admin_gambles') {
+    if (loginEmail === adminCredentials.email && loginPassword === adminCredentials.password) {
       setIsAdmin(true);
       setIsLoggedIn(true);
       setLoginError('');
@@ -126,6 +149,7 @@ const Dashboard = () => {
         setLoginError('');
         sessionStorage.setItem('gamblingClubSession', JSON.stringify({ isAdmin: false, currentMember: member }));
         setUserVote(votes[member.id] || '');
+        setVoteSubmitted(!!votes[member.id]);
       } else {
         setLoginError('Invalid credentials');
       }
@@ -172,7 +196,7 @@ const Dashboard = () => {
       member.id === memberId 
         ? { 
             ...member, 
-            currency: Number(member.currency) + Number(amount),
+            currency: Math.max(0, Number(member.currency) + Number(amount)),
             transactions: [...member.transactions, { 
               amount: Number(amount), 
               date: new Date().toISOString(),
@@ -184,7 +208,7 @@ const Dashboard = () => {
     if (currentMember && memberId === currentMember.id) {
       setCurrentMember(prevMember => ({
         ...prevMember,
-        currency: Number(prevMember.currency) + Number(amount),
+        currency: Math.max(0, Number(prevMember.currency) + Number(amount)),
         transactions: [...prevMember.transactions, { 
           amount: Number(amount), 
           date: new Date().toISOString(),
@@ -227,6 +251,11 @@ const Dashboard = () => {
         break;
       default:
         break;
+    }
+
+    // Prevent going into debt
+    if (currentMember.currency + winAmount < 0) {
+      winAmount = -currentMember.currency;
     }
 
     updateMemberCurrency(currentMember.id, winAmount, `${games.find(g => g.id === gameId).name} game`);
@@ -352,6 +381,30 @@ const Dashboard = () => {
   const updatePollOptions = (newOptions) => {
     setPollOptions(newOptions);
     setVotes({});  // Reset votes when options change
+    setNextPollReset(new Date(new Date().setHours(24, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime()); // Set next reset to midnight tomorrow
+  };
+
+  const resetPoll = () => {
+    setVotes({});
+    setVoteSubmitted(false);
+    setUserVote('');
+    setNextPollReset(new Date(new Date().setHours(24, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime()); // Set next reset to midnight tomorrow
+  };
+
+  const updateFirstPlacePrize = (amount) => {
+    setFirstPlacePrize(amount);
+  };
+
+  const getMemberRank = (memberId) => {
+    const sortedMembers = [...members].sort((a, b) => b.currency - a.currency);
+    return sortedMembers.findIndex(member => member.id === memberId) + 1;
+  };
+
+  const awardFirstPlacePrize = () => {
+    const sortedMembers = [...members].sort((a, b) => b.currency - a.currency);
+    if (sortedMembers.length > 0) {
+      updateMemberCurrency(sortedMembers[0].id, firstPlacePrize, "First place prize");
+    }
   };
 
   if (showSignUp) {
@@ -452,12 +505,24 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
+          <div className="first-place-prize-control">
+            <h3>First Place Prize Control</h3>
+            <p>Current Prize: {firstPlacePrize} {CURRENCY_NAME}</p>
+            <input
+              type="number"
+              value={firstPlacePrize}
+              onChange={(e) => updateFirstPlacePrize(Number(e.target.value))}
+              placeholder="Enter new prize amount"
+            />
+            <button onClick={awardFirstPlacePrize}>Award First Place Prize</button>
+          </div>
         </div>
       ) : currentMember ? (
         <div className="member-view">
           <div className="member-stats">
             <h2>Your Stats</h2>
             <p>Current Balance: {currentMember.currency} {CURRENCY_NAME}</p>
+            <p>Your Rank: {getMemberRank(currentMember.id)} / {members.length}</p>
             <div className="action-buttons">
               <button onClick={() => setShowGameModal(true)} className="game-button">Play Games</button>
               <button onClick={buyLotteryTicket} className="lottery-button">Buy Lottery Ticket (100 {CURRENCY_NAME})</button>
@@ -499,9 +564,9 @@ const Dashboard = () => {
           <div className="transactions">
             <h2>Transaction History</h2>
             <ul>
-              {currentMember.transactions.slice(-5).reverse().map((transaction, index) => (
+              {currentMember.transactions.slice(-10).reverse().map((transaction, index) => (
                 <li key={index}>
-                  {transaction.amount > 0 ? `${transaction.amount} ${CURRENCY_NAME} gained` : `${-transaction.amount} ${CURRENCY_NAME} lost`} 
+                  {transaction.amount > 0 ? `+${transaction.amount}` : transaction.amount} {CURRENCY_NAME} 
                   {transaction.reason ? ` (${transaction.reason})` : ''} 
                   on {new Date(transaction.date).toLocaleString()}
                 </li>
@@ -566,14 +631,14 @@ const Dashboard = () => {
                 <button type="submit">Submit Vote</button>
               </form>
             ) : (
-              <p>Vote Submitted</p>
+              <p>Vote Submitted: {userVote}</p>
             )}
           </div>
 
           <div className="leaderboard">
             <h2>Club Leaderboard</h2>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={members}>
+              <BarChart data={members.sort((a, b) => b.currency - a.currency)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
