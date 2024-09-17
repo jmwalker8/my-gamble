@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } = window.firebase.auth;
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
 import { auth } from './firebase.js';
 import SignUp from './sign_up.js';
 import './dashboard.css';
