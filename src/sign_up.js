@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './firebase.js';
 
 const SignUp = ({ onSignUp, onCancel }) => {
   const [name, setName] = useState('');
@@ -6,18 +8,19 @@ const SignUp = ({ onSignUp, onCancel }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (name && email && password) {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
       onSignUp({ name, email, password });
-    } else {
-      setError('Please fill in all fields');
+    } catch (error) {
+      setError(error.message);
     }
   };
 
   return (
     <div className="signup-container">
-      <h2>Create an Account</h2>
+      <h2>Create Account</h2>
       <form onSubmit={handleSubmit}>
         <input
           type="text"

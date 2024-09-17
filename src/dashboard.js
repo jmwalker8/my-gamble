@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth } from './firebase.js';
 import SignUp from './sign_up.js';
 import './dashboard.css';
 
@@ -111,6 +113,31 @@ const Dashboard = () => {
   }, [nextLotteryDraw, nextPollReset]);
 
   useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        const member = members.find(m => m.email === user.email);
+        if (member) {
+          setCurrentMember(member);
+          setIsLoggedIn(true);
+          setUserVote(votes[member.id] || '');
+          setVoteSubmitted(!!votes[member.id]);
+        } else if (user.email === adminCredentials.email) {
+          setIsAdmin(true);
+          setIsLoggedIn(true);
+        }
+      } else {
+        // User is signed out
+        setIsLoggedIn(false);
+        setIsAdmin(false);
+        setCurrentMember(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [members, votes, adminCredentials.email]);
+
+  useEffect(() => {
     localStorage.setItem('gamblingClubMembers', JSON.stringify(members));
   }, [members]);
 
@@ -134,36 +161,25 @@ const Dashboard = () => {
     localStorage.setItem('gamblingClubNextPollReset', nextPollReset.toString());
   }, [nextPollReset]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (loginEmail === adminCredentials.email && loginPassword === adminCredentials.password) {
-      setIsAdmin(true);
-      setIsLoggedIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setLoginError('');
-      sessionStorage.setItem('gamblingClubSession', JSON.stringify({ isAdmin: true }));
-    } else {
-      const member = members.find(m => m.email.toLowerCase() === loginEmail.toLowerCase() && m.password === loginPassword);
-      if (member) {
-        setCurrentMember(member);
-        setIsLoggedIn(true);
-        setLoginError('');
-        sessionStorage.setItem('gamblingClubSession', JSON.stringify({ isAdmin: false, currentMember: member }));
-        setUserVote(votes[member.id] || '');
-        setVoteSubmitted(!!votes[member.id]);
-      } else {
-        setLoginError('Invalid credentials');
-      }
+    } catch (error) {
+      setLoginError('Invalid credentials');
     }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setCurrentMember(null);
-    setLoginEmail('');
-    setLoginPassword('');
-    setUserVote('');
-    sessionStorage.removeItem('gamblingClubSession');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setLoginEmail('');
+      setLoginPassword('');
+      setUserVote('');
+    } catch (error) {
+      console.error('Error signing out: ', error);
+    }
   };
 
   const handleSelectMember = (member) => {
@@ -331,22 +347,23 @@ const Dashboard = () => {
     }
   };
 
-  const handleSignUp = (newUser) => {
-    const newMember = {
-      id: members.length + 1,
-      name: newUser.name,
-      email: newUser.email,
-      password: newUser.password,
-      currency: STARTING_BALANCE,
-      transactions: [],
-      achievements: [],
-      lastPlayedGames: {}
-    };
-    setMembers(prevMembers => [...prevMembers, newMember]);
-    setCurrentMember(newMember);
-    setIsLoggedIn(true);
-    setShowSignUp(false);
-    sessionStorage.setItem('gamblingClubSession', JSON.stringify({ isAdmin: false, currentMember: newMember }));
+  const handleSignUp = async (newUser) => {
+    try {
+      await createUserWithEmailAndPassword(auth, newUser.email, newUser.password);
+      const newMember = {
+        id: members.length + 1,
+        name: newUser.name,
+        email: newUser.email,
+        currency: STARTING_BALANCE,
+        transactions: [],
+        achievements: [],
+        lastPlayedGames: {}
+      };
+      setMembers(prevMembers => [...prevMembers, newMember]);
+      setShowSignUp(false);
+    } catch (error) {
+      console.error('Error signing up: ', error);
+    }
   };
 
   // Admin functions
