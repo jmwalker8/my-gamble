@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js';
 import { auth } from './firebase.js';
 import SignUp from './sign_up.js';
 import './dashboard.css';
@@ -112,6 +113,58 @@ const Dashboard = () => {
     };
   }, [nextLotteryDraw, nextPollReset]);
 
+  const [db, setDb] = useState(null);
+
+  useEffect(() => {
+    const firestore = getFirestore();
+    setDb(firestore);
+  }, []);
+
+  useEffect(() => {
+    if (db) {
+      syncUsersWithFirebase();
+    }
+  }, [db]);
+
+  const syncUsersWithFirebase = async () => {
+    if (!db) return;
+
+    try {
+      const usersCollection = collection(db, 'users');
+      const userSnapshot = await getDocs(usersCollection);
+      const firebaseUsers = userSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Update local state to match Firebase users
+      setMembers(prevMembers => {
+        const updatedMembers = prevMembers.filter(member => 
+          firebaseUsers.some(fbUser => fbUser.email === member.email)
+        );
+
+        firebaseUsers.forEach(fbUser => {
+          if (!updatedMembers.some(member => member.email === fbUser.email)) {
+            updatedMembers.push({
+              id: fbUser.id,
+              name: fbUser.displayName || 'New Member',
+              email: fbUser.email,
+              currency: STARTING_BALANCE,
+              transactions: [],
+              achievements: [],
+              lastPlayedGames: {}
+            });
+          }
+        });
+
+        return updatedMembers;
+      });
+    } catch (error) {
+      console.error('Error syncing users with Firebase:', error);
+    }
+  };
+
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -135,9 +188,9 @@ const Dashboard = () => {
         setCurrentMember(null);
       }
     });
-
+  
     return () => unsubscribe();
-  }, [members, votes]);
+  }, [members, votes, db]);
 
   useEffect(() => {
     localStorage.setItem('gamblingClubMembers', JSON.stringify(members));
@@ -168,9 +221,7 @@ const Dashboard = () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       const user = userCredential.user;
-      setLoginError('');
       
-      // Find the member with the matching email
       const loggedInMember = members.find(m => m.email === user.email);
       
       if (loggedInMember) {
@@ -182,19 +233,7 @@ const Dashboard = () => {
         setIsAdmin(true);
         setIsLoggedIn(true);
       } else {
-        // If the user is not in our members list, we might want to add them
-        const newMember = {
-          id: members.length + 1,
-          name: user.displayName || 'New Member',
-          email: user.email,
-          currency: STARTING_BALANCE,
-          transactions: [],
-          achievements: [],
-          lastPlayedGames: {}
-        };
-        setMembers(prevMembers => [...prevMembers, newMember]);
-        setCurrentMember(newMember);
-        setIsLoggedIn(true);
+        // ... handle new user
       }
     } catch (error) {
       console.error('Error logging in:', error);
@@ -253,15 +292,16 @@ const Dashboard = () => {
         : member
     ));
     if (currentMember && memberId === currentMember.id) {
-      setCurrentMember(prevMember => ({
-        ...prevMember,
-        currency: Math.max(0, Number(prevMember.currency) + Number(amount)),
-        transactions: [...prevMember.transactions, { 
-          amount: Number(amount), 
-          date: new Date().toISOString(),
-          reason: reason
-        }]
-      }));
+      setCurrentMember(prevMember => {
+        const loggedInMember = members.find(m => m.email === user.email);
+        if (loggedInMember) {
+          setIsLoggedIn(true);
+          setUserVote(votes[loggedInMember.id] || '');
+          setVoteSubmitted(!!votes[loggedInMember.id]);
+          return loggedInMember;
+        }
+        return prevMember;
+      });
     }
     checkAchievements(memberId);
   };
@@ -380,13 +420,13 @@ const Dashboard = () => {
 
   const handleSignUp = async (newUser) => {
     try {
-      // Create the user in Firebase
       const userCredential = await createUserWithEmailAndPassword(auth, newUser.email, newUser.password);
       const user = userCredential.user;
-  
-      // Create a new member object
+
+      await updateProfile(user, { displayName: newUser.name });
+
       const newMember = {
-        id: members.length + 1,
+        id: user.uid,
         name: newUser.name,
         email: newUser.email,
         currency: STARTING_BALANCE,
@@ -394,25 +434,21 @@ const Dashboard = () => {
         achievements: [],
         lastPlayedGames: {}
       };
-  
-      // Add the new member to the members list
+
+      // Add user to Firestore
+      await setDoc(doc(db, 'users', user.uid), newMember);
+
       setMembers(prevMembers => [...prevMembers, newMember]);
-  
-      // Set the current member
       setCurrentMember(newMember);
-  
-      // Set logged in state
       setIsLoggedIn(true);
-  
-      // Close the sign-up form
       setShowSignUp(false);
-  
-      // You might want to save the new member to your backend/database here
-  
+
+      alert('Account created successfully! Welcome to the Stats in Gambling Club!');
+
+      return { success: true };
     } catch (error) {
       console.error('Error signing up:', error);
-      // You might want to show a general error message to the user here
-      throw error; // Rethrow the error so it can be caught in the SignUp component
+      return { success: false, error: error.message };
     }
   };
   
@@ -423,8 +459,21 @@ const Dashboard = () => {
     updateMemberCurrency(memberId, STARTING_BALANCE - member.currency, "Admin reset");
   };
 
-  const deleteMember = (memberId) => {
-    setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
+  const deleteMember = async (memberId) => {
+    try {
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'users', memberId));
+
+      // Delete from local state
+      setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
+
+      // If the deleted member is the current user, log them out
+      if (currentMember && currentMember.id === memberId) {
+        handleLogout();
+      }
+    } catch (error) {
+      console.error('Error deleting member:', error);
+    }
   };
 
   const adjustLotteryPool = (amount) => {

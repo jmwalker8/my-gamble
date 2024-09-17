@@ -7,32 +7,35 @@ const SignUp = ({ onSignUp, onCancel }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); // Clear any previous errors
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Update the user's display name
-      await updateProfile(user, { displayName: name });
+    setIsLoading(true);
+    setError('');
 
-      // Call onSignUp with the new user's information
-      await onSignUp({ name, email, password });
-    } catch (error) {
-      console.error('Error signing up:', error);
-      if (error.code === 'auth/email-already-in-use') {
-        setError('Email already in use. Please use a different email or try logging in.');
-      } else {
-        setError('An error occurred during sign up. Please try again.');
+    if (name && email && password) {
+      try {
+        const result = await onSignUp({ name, email, password });
+        if (result.success) {
+          // Sign-up was successful, no need to do anything here
+          // as the Dashboard component will handle the redirect
+        } else {
+          setError(result.error || 'An error occurred during sign up.');
+        }
+      } catch (error) {
+        setError(error.message || 'An error occurred during sign up.');
       }
+    } else {
+      setError('Please fill in all fields');
     }
+
+    setIsLoading(false);
   };
 
   return (
     <div className="signup-container">
-      <h2>Create Account</h2>
+      <h2>Create an Account</h2>
       <form onSubmit={handleSubmit}>
         <input
           type="text"
@@ -55,8 +58,12 @@ const SignUp = ({ onSignUp, onCancel }) => {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit">Sign Up</button>
-        <button type="button" onClick={onCancel}>Cancel</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Signing Up...' : 'Sign Up'}
+        </button>
+        <button type="button" onClick={onCancel} disabled={isLoading}>
+          Cancel
+        </button>
       </form>
       {error && <p className="error">{error}</p>}
     </div>
