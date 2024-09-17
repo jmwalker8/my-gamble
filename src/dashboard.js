@@ -422,9 +422,9 @@ const Dashboard = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, newUser.email, newUser.password);
       const user = userCredential.user;
-
+  
       await updateProfile(user, { displayName: newUser.name });
-
+  
       const newMember = {
         id: user.uid,
         name: newUser.name,
@@ -434,17 +434,23 @@ const Dashboard = () => {
         achievements: [],
         lastPlayedGames: {}
       };
-
+  
       // Add user to Firestore
       await setDoc(doc(db, 'users', user.uid), newMember);
-
-      setMembers(prevMembers => [...prevMembers, newMember]);
-      setCurrentMember(newMember);
-      setIsLoggedIn(true);
+  
+      setMembers(prevMembers => {
+        const updatedMembers = [...prevMembers, newMember];
+        setCurrentMember(newMember);
+        setIsLoggedIn(true);
+        setUserVote(votes[newMember.id] || '');
+        setVoteSubmitted(!!votes[newMember.id]);
+        return updatedMembers;
+      });
+  
       setShowSignUp(false);
-
+  
       alert('Account created successfully! Welcome to the Stats in Gambling Club!');
-
+  
       return { success: true };
     } catch (error) {
       console.error('Error signing up:', error);
