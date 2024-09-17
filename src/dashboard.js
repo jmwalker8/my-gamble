@@ -352,7 +352,11 @@ const Dashboard = () => {
 
   const handleSignUp = async (newUser) => {
     try {
-      await createUserWithEmailAndPassword(auth, newUser.email, newUser.password);
+      // Create the user in Firebase
+      const userCredential = await createUserWithEmailAndPassword(auth, newUser.email, newUser.password);
+      const user = userCredential.user;
+  
+      // Create a new member object
       const newMember = {
         id: members.length + 1,
         name: newUser.name,
@@ -362,10 +366,29 @@ const Dashboard = () => {
         achievements: [],
         lastPlayedGames: {}
       };
+  
+      // Add the new member to the members list
       setMembers(prevMembers => [...prevMembers, newMember]);
+  
+      // Set the current member
+      setCurrentMember(newMember);
+  
+      // Set logged in state
+      setIsLoggedIn(true);
+  
+      // Close the sign-up form
       setShowSignUp(false);
+  
+      // You might want to save the new member to your backend/database here
+  
     } catch (error) {
-      console.error('Error signing up: ', error);
+      if (error.code === 'auth/email-already-in-use') {
+        console.error('Error signing up: Email already in use');
+        // You might want to show this error to the user
+      } else {
+        console.error('Error signing up:', error);
+      }
+      // You might want to show a general error message to the user here
     }
   };
 

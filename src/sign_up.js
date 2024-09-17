@@ -10,11 +10,15 @@ const SignUp = ({ onSignUp, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(''); // Clear any previous errors
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      onSignUp({ name, email, password });
+      await onSignUp({ name, email, password });
     } catch (error) {
-      setError(error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        setError('Email already in use. Please use a different email or try logging in.');
+      } else {
+        setError('An error occurred during sign up. Please try again.');
+      }
     }
   };
 
