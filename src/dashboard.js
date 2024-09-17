@@ -293,7 +293,7 @@ const Dashboard = () => {
     ));
     if (currentMember && memberId === currentMember.id) {
       setCurrentMember(prevMember => {
-        const loggedInMember = members.find(m => m.email === user.email);
+        const loggedInMember = members.find(m => m.email === newUser.email);
         if (loggedInMember) {
           setIsLoggedIn(true);
           setUserVote(votes[loggedInMember.id] || '');
