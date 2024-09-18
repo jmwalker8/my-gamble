@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js';
-import { auth } from './firebase.js';
+import { auth, app, db  } from './firebase.js';
 import SignUp from './sign_up.js';
 import './dashboard.css';
 
@@ -13,8 +13,6 @@ const LOTTERY_DRAW_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
 const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
 const CURRENCY_NAME = 'GambleCoins';
 const firestore = getFirestore();
-
-const db = getFirestore(app)
 
 // Parse initial members from environment variable
 const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]').map(member => ({
