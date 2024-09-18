@@ -39,13 +39,16 @@ const Dashboard = () => {
   const [members, setMembers] = useState(() => {
     const savedMembers = localStorage.getItem('gamblingClubMembers');
     if (savedMembers) {
-      return JSON.parse(savedMembers).map(member => ({
-        ...member,
-        currency: Number(member.currency)
-      }));
+      return JSON.parse(savedMembers);
     }
-    return initialMembers;
+    return initialMembers;  // This uses the initialMembers from the environment variable
   });
+  
+  useEffect(() => {
+    if (db && members.length === 0) {
+      syncUsersWithFirebase();
+    }
+  }, [db, members]);
   const [lotteryPool, setLotteryPool] = useState(() => {
     const savedPool = localStorage.getItem('gamblingClubLotteryPool');
     return savedPool ? Number(savedPool) : 1000;
@@ -128,7 +131,7 @@ const Dashboard = () => {
 
   const syncUsersWithFirebase = async () => {
     if (!db) return;
-
+  
     try {
       const usersCollection = collection(db, 'users');
       const userSnapshot = await getDocs(usersCollection);
@@ -136,29 +139,20 @@ const Dashboard = () => {
         id: doc.id,
         ...doc.data()
       }));
-
+  
       // Update local state to match Firebase users
-      setMembers(prevMembers => {
-        const updatedMembers = prevMembers.filter(member => 
-          firebaseUsers.some(fbUser => fbUser.email === member.email)
-        );
-
-        firebaseUsers.forEach(fbUser => {
-          if (!updatedMembers.some(member => member.email === fbUser.email)) {
-            updatedMembers.push({
-              id: fbUser.id,
-              name: fbUser.displayName || 'New Member',
-              email: fbUser.email,
-              currency: STARTING_BALANCE,
-              transactions: [],
-              achievements: [],
-              lastPlayedGames: {}
-            });
-          }
-        });
-
-        return updatedMembers;
-      });
+      setMembers(firebaseUsers);
+  
+      // Update currentMember if it exists in the new set of users
+      if (currentMember) {
+        const updatedCurrentMember = firebaseUsers.find(user => user.id === currentMember.id);
+        if (updatedCurrentMember) {
+          setCurrentMember(updatedCurrentMember);
+        } else {
+          // Current member was deleted, log out
+          handleLogout();
+        }
+      }
     } catch (error) {
       console.error('Error syncing users with Firebase:', error);
     }
@@ -222,18 +216,19 @@ const Dashboard = () => {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       const user = userCredential.user;
       
-      const loggedInMember = members.find(m => m.email === user.email);
-      
-      if (loggedInMember) {
-        setCurrentMember(loggedInMember);
+      // Fetch user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setCurrentMember({id: user.uid, ...userData});
         setIsLoggedIn(true);
-        setUserVote(votes[loggedInMember.id] || '');
-        setVoteSubmitted(!!votes[loggedInMember.id]);
+        setUserVote(votes[user.uid] || '');
+        setVoteSubmitted(!!votes[user.uid]);
       } else if (user.email === 'jmicaw318@gmail.com') {
         setIsAdmin(true);
         setIsLoggedIn(true);
       } else {
-        // ... handle new user
+        setLoginError('User data not found');
       }
     } catch (error) {
       console.error('Error logging in:', error);
@@ -278,32 +273,32 @@ const Dashboard = () => {
   };
 
   const updateMemberCurrency = (memberId, amount, reason) => {
-    setMembers(prevMembers => prevMembers.map(member => 
-      member.id === memberId 
-        ? { 
-            ...member, 
-            currency: Math.max(0, Number(member.currency) + Number(amount)),
-            transactions: [...member.transactions, { 
-              amount: Number(amount), 
-              date: new Date().toISOString(),
-              reason: reason
-            }]
-          }
-        : member
-    ));
-    if (currentMember && memberId === currentMember.id) {
-      setCurrentMember(prevMember => ({
-        ...prevMember,
-        currency: Math.max(0, Number(prevMember.currency) + Number(amount)),
-        transactions: [...prevMember.transactions, { 
-          amount: Number(amount), 
-          date: new Date().toISOString(),
-          reason: reason
-        }]
-      }));
-    }
-    checkAchievements(memberId);
-  };
+  setMembers(prevMembers => prevMembers.map(member => 
+    member.id === memberId 
+      ? { 
+          ...member, 
+          currency: Math.max(0, Number(member.currency) + Number(amount)),
+          transactions: [...member.transactions, { 
+            amount: Number(amount), 
+            date: new Date().toISOString(),
+            reason: reason
+          }]
+        }
+      : member
+  ));
+  if (currentMember && memberId === currentMember.id) {
+    setCurrentMember(prevMember => ({
+      ...prevMember,
+      currency: Math.max(0, Number(prevMember.currency) + Number(amount)),
+      transactions: [...prevMember.transactions, { 
+        amount: Number(amount), 
+        date: new Date().toISOString(),
+        reason: reason
+      }]
+    }));
+  }
+  checkAchievements(memberId);
+};
   
   const playGame = (gameId) => {
     const game = games.find(g => g.id === gameId);
@@ -437,16 +432,12 @@ const Dashboard = () => {
       // Add user to Firestore
       await setDoc(doc(db, 'users', user.uid), newMember);
   
-      setMembers(prevMembers => {
-        const updatedMembers = [...prevMembers, newMember];
-        setCurrentMember(newMember);
-        setIsLoggedIn(true);
-        setUserVote(votes[newMember.id] || '');
-        setVoteSubmitted(!!votes[newMember.id]);
-        return updatedMembers;
-      });
-  
+      setCurrentMember(newMember);
+      setIsLoggedIn(true);
       setShowSignUp(false);
+  
+      // Sync with Firebase to update the members list
+      syncUsersWithFirebase();
   
       alert('Account created successfully! Welcome to the Stats in Gambling Club!');
   
