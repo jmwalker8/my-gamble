@@ -14,6 +14,8 @@ const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
 const CURRENCY_NAME = 'GambleCoins';
 const firestore = getFirestore();
 
+const db = getFirestore(app)
+
 // Parse initial members from environment variable
 const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]').map(member => ({
   ...member,
