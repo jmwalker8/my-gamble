@@ -2,23 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js';
-import { auth, app, db  } from './firebase.js';
+import { auth, app, db } from './firebase.js';
 import SignUp from './sign_up.js';
 import './dashboard.css';
 
 // INITIAL DATA
 
-const STARTING_BALANCE = 100;
-const LOTTERY_DRAW_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
-const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
-const CURRENCY_NAME = 'GambleCoins';
+const STARTING_POINTS = 100;
+const QUIZ_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
+const BADGE_FORMAT = 'LLNNNN'; // L: Letter, N: Number
+const CURRENCY_NAME = 'Points';
 const firestore = getFirestore();
 
 // Parse initial members from environment variable
 const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]').map(member => ({
   ...member,
-  currency: STARTING_BALANCE,
-  transactions: [],
+  points: STARTING_POINTS,
+  activities: [],
   achievements: [],
   lastPlayedGames: {}
 }));
@@ -26,49 +26,48 @@ const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]')
 const adminCredentials = JSON.parse(process.env.REACT_APP_ADMIN_CREDENTIALS || '{}');
 
 const achievements = [
-  { id: 1, name: 'High Roller', description: 'Reach 2000 currency', threshold: 2000 },
-  { id: 2, name: 'Lucky Streak', description: 'Win 5 games in a row', threshold: 5 },
+  { id: 1, name: 'High Achiever', description: 'Reach 2000 points', threshold: 2000 },
+  { id: 2, name: 'Consistent Learner', description: 'Complete 5 activities in a row', threshold: 5 },
 ];
 
 const games = [
-  { id: 'coinflip', name: 'Coin Flip', cooldown: 5 * 60 * 1000, minBet: 10, maxBet: 100 },
-  { id: 'dice', name: 'Dice Roll', cooldown: 10 * 60 * 1000, minBet: 20, maxBet: 200 },
-  { id: 'slot', name: 'Slot Machine', cooldown: 15 * 60 * 1000, minBet: 50, maxBet: 500 },
+  { id: 'mathquiz', name: 'Math Quiz', cooldown: 5 * 60 * 1000, minPoints: 10, maxPoints: 100 },
+  { id: 'spellingbee', name: 'Spelling Bee', cooldown: 10 * 60 * 1000, minPoints: 20, maxPoints: 200 },
+  { id: 'sciencetrivia', name: 'Science Trivia', cooldown: 15 * 60 * 1000, minPoints: 50, maxPoints: 500 },
 ];
 
 const Dashboard = () => {
   const [members, setMembers] = useState(() => {
-    const savedMembers = localStorage.getItem('gamblingClubMembers');
+    const savedMembers = localStorage.getItem('statsClubMembers');
     if (savedMembers) {
       return JSON.parse(savedMembers);
     }
-    return initialMembers;  // This uses the initialMembers from the environment variable
+    return initialMembers;
   });
   
-  useEffect(() => {
-    if (db && members.length === 0) {
-      syncUsersWithFirebase();
-    }
-  }, [db, members]);
-  const [lotteryPool, setLotteryPool] = useState(() => {
-    const savedPool = localStorage.getItem('gamblingClubLotteryPool');
+  const [quizPool, setQuizPool] = useState(() => {
+    const savedPool = localStorage.getItem('statsClubQuizPool');
     return savedPool ? Number(savedPool) : 1000;
   });
-  const [lotteryTickets, setLotteryTickets] = useState(() => {
-    const savedTickets = localStorage.getItem('gamblingClubLotteryTickets');
-    return savedTickets ? JSON.parse(savedTickets) : [];
+
+  const [quizBadges, setQuizBadges] = useState(() => {
+    const savedBadges = localStorage.getItem('statsClubQuizBadges');
+    return savedBadges ? JSON.parse(savedBadges) : [];
   });
-  const [nextLotteryDraw, setNextLotteryDraw] = useState(() => {
-    const savedDrawTime = localStorage.getItem('gamblingClubNextLotteryDraw');
-    return savedDrawTime ? Number(savedDrawTime) : LOTTERY_DRAW_TIME;
+
+  const [nextQuiz, setNextQuiz] = useState(() => {
+    const savedQuizTime = localStorage.getItem('statsClubNextQuiz');
+    return savedQuizTime ? Number(savedQuizTime) : QUIZ_TIME;
   });
+
   const [votes, setVotes] = useState(() => {
-    const savedVotes = localStorage.getItem('gamblingClubVotes');
+    const savedVotes = localStorage.getItem('statsClubVotes');
     return savedVotes ? JSON.parse(savedVotes) : {};
   });
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [currencyChange, setCurrencyChange] = useState('');
+  const [pointsChange, setPointsChange] = useState('');
   const [gameOutcome, setGameOutcome] = useState('');
   const [currentMember, setCurrentMember] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -78,20 +77,26 @@ const Dashboard = () => {
   const [showSignUp, setShowSignUp] = useState(false);
   const [showGameModal, setShowGameModal] = useState(false);
   const [selectedGame, setSelectedGame] = useState(null);
-  const [betAmount, setBetAmount] = useState('');
-  const [pollOptions, setPollOptions] = useState(['Coin Flip', 'Dice Roll', 'Slot Machine']);
+  const [pointsAtStake, setPointsAtStake] = useState('');
+  const [pollOptions, setPollOptions] = useState(['Math Quiz', 'Spelling Bee', 'Science Trivia']);
   const [userVote, setUserVote] = useState('');
   const [voteSubmitted, setVoteSubmitted] = useState(false);
-  const [showTicketsModal, setShowTicketsModal] = useState(false);
+  const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [firstPlacePrize, setFirstPlacePrize] = useState(1000);
   const [nextPollReset, setNextPollReset] = useState(() => {
-    const savedResetTime = localStorage.getItem('gamblingClubNextPollReset');
+    const savedResetTime = localStorage.getItem('statsClubNextPollReset');
     return savedResetTime ? Number(savedResetTime) : new Date().setHours(24, 0, 0, 0); // Midnight tonight
   });
 
   useEffect(() => {
+    if (db && members.length === 0) {
+      syncUsersWithFirebase();
+    }
+  }, [db, members]);
+
+  useEffect(() => {
     // Check for existing session on component mount
-    const sessionData = sessionStorage.getItem('gamblingClubSession');
+    const sessionData = sessionStorage.getItem('statsClubSession');
     if (sessionData) {
       const { isAdmin, currentMember } = JSON.parse(sessionData);
       setIsAdmin(isAdmin);
@@ -99,9 +104,9 @@ const Dashboard = () => {
       setIsLoggedIn(true);
     }
 
-    const lotteryTimer = setInterval(() => {
-      if (Date.now() >= nextLotteryDraw) {
-        drawLottery();
+    const quizTimer = setInterval(() => {
+      if (Date.now() >= nextQuiz) {
+        conductQuiz();
       }
     }, 60000); // Check every minute
 
@@ -112,14 +117,65 @@ const Dashboard = () => {
     }, 60000); // Check every minute
 
     return () => {
-      clearInterval(lotteryTimer);
+      clearInterval(quizTimer);
       clearInterval(pollResetTimer);
     };
-  }, [nextLotteryDraw, nextPollReset]);
+  }, [nextQuiz, nextPollReset]);
 
   useEffect(() => {
     syncUsersWithFirebase();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        const member = members.find(m => m.email === user.email);
+        if (member) {
+          setCurrentMember(member);
+          setIsLoggedIn(true);
+          setUserVote(votes[member.id] || '');
+          setVoteSubmitted(!!votes[member.id]);
+        }
+        // Check if the logged-in user is the admin
+        if (user.email === 'admin@statsclub.com') {
+          setIsAdmin(true);
+          setIsLoggedIn(true);
+        }
+      } else {
+        // User is signed out
+        setIsLoggedIn(false);
+        setIsAdmin(false);
+        setCurrentMember(null);
+      }
+    });
+  
+    return () => unsubscribe();
+  }, [members, votes, db]);
+
+  useEffect(() => {
+    localStorage.setItem('statsClubMembers', JSON.stringify(members));
+  }, [members]);
+
+  useEffect(() => {
+    localStorage.setItem('statsClubQuizPool', quizPool.toString());
+  }, [quizPool]);
+
+  useEffect(() => {
+    localStorage.setItem('statsClubQuizBadges', JSON.stringify(quizBadges));
+  }, [quizBadges]);
+
+  useEffect(() => {
+    localStorage.setItem('statsClubNextQuiz', nextQuiz.toString());
+  }, [nextQuiz]);
+
+  useEffect(() => {
+    localStorage.setItem('statsClubVotes', JSON.stringify(votes));
+  }, [votes]);
+
+  useEffect(() => {
+    localStorage.setItem('statsClubNextPollReset', nextPollReset.toString());
+  }, [nextPollReset]);
 
   const syncUsersWithFirebase = async () => {
     try {
@@ -145,58 +201,6 @@ const Dashboard = () => {
     }
   };
 
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        // User is signed in
-        const member = members.find(m => m.email === user.email);
-        if (member) {
-          setCurrentMember(member);
-          setIsLoggedIn(true);
-          setUserVote(votes[member.id] || '');
-          setVoteSubmitted(!!votes[member.id]);
-        }
-        // Check if the logged-in user is the admin
-        if (user.email === 'jmicaw318@gmail.com') {
-          setIsAdmin(true);
-          setIsLoggedIn(true);
-        }
-      } else {
-        // User is signed out
-        setIsLoggedIn(false);
-        setIsAdmin(false);
-        setCurrentMember(null);
-      }
-    });
-  
-    return () => unsubscribe();
-  }, [members, votes, db]);
-
-  useEffect(() => {
-    localStorage.setItem('gamblingClubMembers', JSON.stringify(members));
-  }, [members]);
-
-  useEffect(() => {
-    localStorage.setItem('gamblingClubLotteryPool', lotteryPool.toString());
-  }, [lotteryPool]);
-
-  useEffect(() => {
-    localStorage.setItem('gamblingClubLotteryTickets', JSON.stringify(lotteryTickets));
-  }, [lotteryTickets]);
-
-  useEffect(() => {
-    localStorage.setItem('gamblingClubNextLotteryDraw', nextLotteryDraw.toString());
-  }, [nextLotteryDraw]);
-
-  useEffect(() => {
-    localStorage.setItem('gamblingClubVotes', JSON.stringify(votes));
-  }, [votes]);
-
-  useEffect(() => {
-    localStorage.setItem('gamblingClubNextPollReset', nextPollReset.toString());
-  }, [nextPollReset]);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -210,7 +214,7 @@ const Dashboard = () => {
         setIsLoggedIn(true);
         setUserVote(votes[user.uid] || '');
         setVoteSubmitted(!!votes[user.uid]);
-      } else if (user.email === 'jmicaw318@gmail.com') {
+      } else if (user.email === 'admin@statsclub.com') {
         setIsAdmin(true);
         setIsLoggedIn(true);
       } else {
@@ -235,56 +239,56 @@ const Dashboard = () => {
 
   const handleSelectMember = (member) => {
     setSelectedMember(member);
-    setCurrencyChange('');
+    setPointsChange('');
   };
 
-  const handleCurrencyChange = () => {
-    if (selectedMember && currencyChange) {
-      updateMemberCurrency(selectedMember.id, parseInt(currencyChange), "Admin adjustment");
+  const handlePointsChange = () => {
+    if (selectedMember && pointsChange) {
+      updateMemberPoints(selectedMember.id, parseInt(pointsChange), "Admin adjustment");
       setSelectedMember(null);
-      setCurrencyChange('');
+      setPointsChange('');
     }
   };
 
-  const generateTicket = () => {
-    let ticket = '';
-    for (let char of TICKET_FORMAT) {
+  const generateBadge = () => {
+    let badge = '';
+    for (let char of BADGE_FORMAT) {
       if (char === 'L') {
-        ticket += String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        badge += String.fromCharCode(65 + Math.floor(Math.random() * 26));
       } else {
-        ticket += Math.floor(Math.random() * 10);
+        badge += Math.floor(Math.random() * 10);
       }
     }
-    return ticket;
+    return badge;
   };
 
-  const updateMemberCurrency = (memberId, amount, reason) => {
-  setMembers(prevMembers => prevMembers.map(member => 
-    member.id === memberId 
-      ? { 
-          ...member, 
-          currency: Math.max(0, Number(member.currency) + Number(amount)),
-          transactions: [...member.transactions, { 
-            amount: Number(amount), 
-            date: new Date().toISOString(),
-            reason: reason
-          }]
-        }
-      : member
-  ));
-  if (currentMember && memberId === currentMember.id) {
-    setCurrentMember(prevMember => ({
-      ...prevMember,
-      currency: Math.max(0, Number(prevMember.currency) + Number(amount)),
-      transactions: [...prevMember.transactions, { 
-        amount: Number(amount), 
-        date: new Date().toISOString(),
-        reason: reason
-      }]
-    }));
-  }
-  checkAchievements(memberId);
-};
+  const updateMemberPoints = (memberId, amount, reason) => {
+    setMembers(prevMembers => prevMembers.map(member => 
+      member.id === memberId 
+        ? { 
+            ...member, 
+            points: Math.max(0, Number(member.points) + Number(amount)),
+            activities: [...member.activities, { 
+              points: Number(amount), 
+              date: new Date().toISOString(),
+              reason: reason
+            }]
+          }
+        : member
+    ));
+    if (currentMember && memberId === currentMember.id) {
+      setCurrentMember(prevMember => ({
+        ...prevMember,
+        points: Math.max(0, Number(prevMember.points) + Number(amount)),
+        activities: [...prevMember.activities, { 
+          points: Number(amount), 
+          date: new Date().toISOString(),
+          reason: reason
+        }]
+      }));
+    }
+    checkAchievements(memberId);
+  };
   
   const playGame = (gameId) => {
     const game = games.find(g => g.id === gameId);
@@ -295,38 +299,33 @@ const Dashboard = () => {
       return;
     }
   
-    if (currentMember.currency < game.minBet) {
-      setGameOutcome(`You don't have enough ${CURRENCY_NAME} to play. Minimum bet is ${game.minBet}.`);
+    if (currentMember.points < game.minPoints) {
+      setGameOutcome(`You don't have enough ${CURRENCY_NAME} to play. Minimum points required: ${game.minPoints}.`);
       return;
     }
   
-    if (currentMember.currency < parseInt(betAmount) || parseInt(betAmount) < game.minBet || parseInt(betAmount) > game.maxBet) {
-      setGameOutcome(`Invalid bet amount. Min: ${game.minBet}, Max: ${game.maxBet}`);
+    if (currentMember.points < parseInt(pointsAtStake) || parseInt(pointsAtStake) < game.minPoints || parseInt(pointsAtStake) > game.maxPoints) {
+      setGameOutcome(`Invalid points amount. Min: ${game.minPoints}, Max: ${game.maxPoints}`);
       return;
     }
 
-    let winAmount = 0;
+    let pointsEarned = 0;
     switch (gameId) {
-      case 'coinflip':
-        winAmount = Math.random() > 0.5 ? parseInt(betAmount) : -parseInt(betAmount);
+      case 'mathquiz':
+        pointsEarned = Math.random() > 0.5 ? parseInt(pointsAtStake) : Math.floor(parseInt(pointsAtStake) / 2);
         break;
-      case 'dice':
-        winAmount = Math.random() > 0.33 ? parseInt(betAmount) : -parseInt(betAmount);
+      case 'spellingbee':
+        pointsEarned = Math.random() > 0.33 ? parseInt(pointsAtStake) : Math.floor(parseInt(pointsAtStake) / 3);
         break;
-      case 'slot':
-        winAmount = Math.random() > 0.2 ? parseInt(betAmount) * 2 : -parseInt(betAmount);
+      case 'sciencetrivia':
+        pointsEarned = Math.random() > 0.2 ? parseInt(pointsAtStake) * 2 : Math.floor(parseInt(pointsAtStake) / 4);
         break;
       default:
         break;
     }
 
-    // Prevent going into debt
-    if (currentMember.currency + winAmount < 0) {
-      winAmount = -currentMember.currency;
-    }
-
-    updateMemberCurrency(currentMember.id, winAmount, `${games.find(g => g.id === gameId).name} game`);
-    setGameOutcome(winAmount > 0 ? `You won ${winAmount} ${CURRENCY_NAME}!` : `You lost ${-winAmount} ${CURRENCY_NAME}.`);
+    updateMemberPoints(currentMember.id, pointsEarned, `${games.find(g => g.id === gameId).name} game`);
+    setGameOutcome(`You earned ${pointsEarned} ${CURRENCY_NAME}!`);
     
     setCurrentMember(prevMember => ({
       ...prevMember,
@@ -339,34 +338,34 @@ const Dashboard = () => {
     setShowGameModal(false);
   };
 
-  const buyLotteryTicket = () => {
-    if (currentMember.currency >= 100) {
-      updateMemberCurrency(currentMember.id, -100, "Lottery ticket purchase");
-      const newTicket = { memberId: currentMember.id, number: generateTicket() };
-      setLotteryTickets(prevTickets => [...prevTickets, newTicket]);
-      setLotteryPool(prevPool => prevPool + 50); // 50% of ticket price goes to pool
+  const earnQuizBadge = () => {
+    if (currentMember.points >= 100) {
+      updateMemberPoints(currentMember.id, -100, "Quiz badge earned");
+      const newBadge = { memberId: currentMember.id, number: generateBadge() };
+      setQuizBadges(prevBadges => [...prevBadges, newBadge]);
+      setQuizPool(prevPool => prevPool + 50); // 50% of badge cost goes to pool
     } else {
-      setGameOutcome(`Not enough ${CURRENCY_NAME} to buy a lottery ticket.`);
+      setGameOutcome(`Not enough ${CURRENCY_NAME} to earn a quiz badge.`);
     }
   };
 
-  const drawLottery = () => {
-    const winningNumber = generateTicket();
-    const winningTicket = lotteryTickets.find(ticket => ticket.number === winningNumber);
+  const conductQuiz = () => {
+    const winningNumber = generateBadge();
+    const winningBadge = quizBadges.find(badge => badge.number === winningNumber);
 
-    if (winningTicket) {
-      const winner = members.find(member => member.id === winningTicket.memberId);
-      updateMemberCurrency(winner.id, lotteryPool, "Lottery win");
-      setGameOutcome(`${winner.name} won the lottery jackpot of ${lotteryPool} ${CURRENCY_NAME}!`);
-      setLotteryPool(1000); // Reset pool
+    if (winningBadge) {
+      const winner = members.find(member => member.id === winningBadge.memberId);
+      updateMemberPoints(winner.id, quizPool, "Quiz win");
+      setGameOutcome(`${winner.name} won the quiz prize of ${quizPool} ${CURRENCY_NAME}!`);
+      setQuizPool(1000); // Reset pool
     } else {
-      setLotteryPool(prevPool => prevPool * 1.5); // Increase pool if no winner
-      setGameOutcome("No winner this time. Lottery pool increased!");
+      setQuizPool(prevPool => prevPool * 1.5); // Increase pool if no winner
+      setGameOutcome("No winner this time. Quiz prize pool increased!");
     }
 
-    setLotteryTickets([]);
-    // Set next draw time to 8:00 PM tomorrow
-    setNextLotteryDraw(new Date(new Date().setHours(20, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime());
+    setQuizBadges([]);
+    // Set next quiz time to 8:00 PM tomorrow
+    setNextQuiz(new Date(new Date().setHours(20, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime());
   };
 
   const checkAchievements = (memberId) => {
@@ -374,9 +373,9 @@ const Dashboard = () => {
     if (member) {
       achievements.forEach(achievement => {
         if (!member.achievements.includes(achievement.id)) {
-          if (achievement.id === 1 && member.currency >= achievement.threshold) {
+          if (achievement.id === 1 && member.points >= achievement.threshold) {
             addAchievement(memberId, achievement.id);
-          } else if (achievement.id === 2 && member.transactions.slice(-5).every(t => t.amount > 0)) {
+          } else if (achievement.id === 2 && member.activities.slice(-5).every(t => t.points > 0)) {
             addAchievement(memberId, achievement.id);
           }
         }
@@ -409,8 +408,8 @@ const Dashboard = () => {
         id: user.uid,
         name: newUser.name,
         email: newUser.email,
-        currency: STARTING_BALANCE,
-        transactions: [],
+        points: STARTING_POINTS,
+        activities: [],
         achievements: [],
         lastPlayedGames: {}
       };
@@ -423,7 +422,7 @@ const Dashboard = () => {
   
       syncUsersWithFirebase();
   
-      alert('Account created successfully! Welcome to the Stats in Gambling Club!');
+      alert('Account created successfully! Welcome to the Stats Club!');
   
       return { success: true };
     } catch (error) {
@@ -431,12 +430,11 @@ const Dashboard = () => {
       return { success: false, error: error.message };
     }
   };
-  
 
   // Admin functions
-  const resetMemberCurrency = (memberId) => {
+  const resetMemberPoints = (memberId) => {
     const member = members.find(m => m.id === memberId);
-    updateMemberCurrency(memberId, STARTING_BALANCE - member.currency, "Admin reset");
+    updateMemberPoints(memberId, STARTING_POINTS - member.points, "Admin reset");
   };
 
   const deleteMember = async (memberId) => {
@@ -450,17 +448,16 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error deleting member:', error);
-      // You might want to add some user feedback here, e.g.:
-      // alert('Failed to delete member. Please try again.');
+      alert('Failed to delete member. Please try again.');
     }
   };
 
-  const adjustLotteryPool = (amount) => {
-    setLotteryPool(prevPool => Math.max(1000, prevPool + amount));
+  const adjustQuizPool = (amount) => {
+    setQuizPool(prevPool => Math.max(1000, prevPool + amount));
   };
 
-  const addMoreCurrency = (memberId, amount = STARTING_BALANCE) => {
-    updateMemberCurrency(memberId, amount, "Admin bonus");
+  const addMorePoints = (memberId, amount = STARTING_POINTS) => {
+    updateMemberPoints(memberId, amount, "Admin bonus");
   };
 
   const handleVote = (option) => {
@@ -492,14 +489,14 @@ const Dashboard = () => {
   };
 
   const getMemberRank = (memberId) => {
-    const sortedMembers = [...members].sort((a, b) => b.currency - a.currency);
+    const sortedMembers = [...members].sort((a, b) => b.points - a.points);
     return sortedMembers.findIndex(member => member.id === memberId) + 1;
   };
 
   const awardFirstPlacePrize = () => {
-    const sortedMembers = [...members].sort((a, b) => b.currency - a.currency);
+    const sortedMembers = [...members].sort((a, b) => b.points - a.points);
     if (sortedMembers.length > 0) {
-      updateMemberCurrency(sortedMembers[0].id, firstPlacePrize, "First place prize");
+      updateMemberPoints(sortedMembers[0].id, firstPlacePrize, "First place prize");
     }
   };
 
@@ -510,7 +507,7 @@ const Dashboard = () => {
   if (!isLoggedIn) {
     return (
       <div className="login-container">
-        <h2>Login to Stats in Gambling Club</h2>
+        <h2>Login to Stats Club</h2>
         <form onSubmit={handleLogin}>
           <input
             type="text"
@@ -536,7 +533,7 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <h1 className="dashboard-title">Stats in Gambling Club Dashboard</h1>
+      <h1 className="dashboard-title">Stats Club Dashboard</h1>
       <button onClick={handleLogout} className="logout-button">Logout</button>
 
       {isAdmin ? (
@@ -547,7 +544,7 @@ const Dashboard = () => {
               <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Currency</th>
+                <th>Points</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -556,34 +553,34 @@ const Dashboard = () => {
                 <tr key={member.id}>
                   <td>{member.name}</td>
                   <td>{member.email}</td>
-                  <td>{member.currency} {CURRENCY_NAME}</td>
+                  <td>{member.points} {CURRENCY_NAME}</td>
                   <td>
                     <button onClick={() => handleSelectMember(member)}>Select</button>
-                    <button onClick={() => resetMemberCurrency(member.id)}>Reset Currency</button>
+                    <button onClick={() => resetMemberPoints(member.id)}>Reset Points</button>
                     <button onClick={() => deleteMember(member.id)}>Delete</button>
-                    <button onClick={() => addMoreCurrency(member.id)}>Add {STARTING_BALANCE} {CURRENCY_NAME}</button>
+                    <button onClick={() => addMorePoints(member.id)}>Add {STARTING_POINTS} {CURRENCY_NAME}</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           {selectedMember && (
-            <div className="currency-update">
+            <div className="points-update">
               <input
                 type="number"
-                value={currencyChange}
-                onChange={(e) => setCurrencyChange(e.target.value)}
+                value={pointsChange}
+                onChange={(e) => setPointsChange(e.target.value)}
                 placeholder="Enter amount"
               />
-              <button onClick={handleCurrencyChange}>Update Currency</button>
+              <button onClick={handlePointsChange}>Update Points</button>
             </div>
           )}
-          <div className="lottery-control">
-            <h3>Lottery Control</h3>
-            <p>Current Pool: {lotteryPool} {CURRENCY_NAME}</p>
-            <button onClick={() => adjustLotteryPool(1000)}>Increase Pool</button>
-            <button onClick={() => adjustLotteryPool(-1000)}>Decrease Pool</button>
-            <button onClick={drawLottery}>Force Lottery Draw</button>
+          <div className="quiz-control">
+            <h3>Quiz Control</h3>
+            <p>Current Pool: {quizPool} {CURRENCY_NAME}</p>
+            <button onClick={() => adjustQuizPool(1000)}>Increase Pool</button>
+            <button onClick={() => adjustQuizPool(-1000)}>Decrease Pool</button>
+            <button onClick={conductQuiz}>Force Quiz Now</button>
           </div>
           <div className="poll-control">
             <h3>Update Poll Options</h3>
@@ -617,18 +614,18 @@ const Dashboard = () => {
         <div className="member-view">
           <div className="member-stats">
             <h2>Your Stats</h2>
-            <p>Current Balance: {currentMember.currency} {CURRENCY_NAME}</p>
+            <p>Current Balance: {currentMember.points} {CURRENCY_NAME}</p>
             <p>Your Rank: {getMemberRank(currentMember.id)} / {members.length}</p>
             <div className="action-buttons">
-              <button onClick={() => setShowGameModal(true)} className="game-button">Play Games</button>
-              <button onClick={buyLotteryTicket} className="lottery-button">Buy Lottery Ticket (100 {CURRENCY_NAME})</button>
+              <button onClick={() => setShowGameModal(true)} className="game-button">Play Learning Games</button>
+              <button onClick={earnQuizBadge} className="quiz-button">Earn Quiz Badge (100 {CURRENCY_NAME})</button>
             </div>
             {gameOutcome && <p>{gameOutcome}</p>}
           </div>
 
           {showGameModal && (
             <div className="game-modal">
-              <h3>Select a Game</h3>
+              <h3>Select a Learning Game</h3>
               {games.map(game => (
                 <div key={game.id}>
                   <button 
@@ -646,9 +643,9 @@ const Dashboard = () => {
                 <div>
                   <input
                     type="number"
-                    value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
-                    placeholder={`Bet amount (${selectedGame.minBet}-${selectedGame.maxBet})`}
+                    value={pointsAtStake}
+                    onChange={(e) => setPointsAtStake(e.target.value)}
+                    placeholder={`Points at stake (${selectedGame.minPoints}-${selectedGame.maxPoints})`}
                   />
                   <button onClick={() => playGame(selectedGame.id)}>Play {selectedGame.name}</button>
                 </div>
@@ -657,14 +654,14 @@ const Dashboard = () => {
             </div>
           )}
 
-          <div className="transactions">
-            <h2>Transaction History</h2>
+          <div className="activities">
+            <h2>Activity History</h2>
             <ul>
-              {currentMember.transactions.slice(-10).reverse().map((transaction, index) => (
+              {currentMember.activities.slice(-10).reverse().map((activity, index) => (
                 <li key={index}>
-                  {transaction.amount > 0 ? `+${transaction.amount}` : transaction.amount} {CURRENCY_NAME} 
-                  {transaction.reason ? ` (${transaction.reason})` : ''} 
-                  on {new Date(transaction.date).toLocaleString()}
+                  {activity.points > 0 ? `+${activity.points}` : activity.points} {CURRENCY_NAME} 
+                  {activity.reason ? ` (${activity.reason})` : ''} 
+                  on {new Date(activity.date).toLocaleString()}
                 </li>
               ))}
             </ul>
@@ -681,34 +678,34 @@ const Dashboard = () => {
             </ul>
           </div>
 
-          <div className="lottery-info">
-            <h2>Lottery</h2>
-            <p>Current Pool: {lotteryPool} {CURRENCY_NAME}</p>
-            <p>Next Draw: {new Date(nextLotteryDraw).toLocaleString()}</p>
-            <p>Your Tickets: {lotteryTickets.filter(ticket => ticket.memberId === currentMember.id).length}</p>
-            {lotteryTickets.filter(ticket => ticket.memberId === currentMember.id).length > 0 && (
-              <button onClick={() => setShowTicketsModal(true)}>View Tickets</button>
+          <div className="quiz-info">
+            <h2>Weekly Quiz</h2>
+            <p>Current Prize Pool: {quizPool} {CURRENCY_NAME}</p>
+            <p>Next Quiz: {new Date(nextQuiz).toLocaleString()}</p>
+            <p>Your Badges: {quizBadges.filter(badge => badge.memberId === currentMember.id).length}</p>
+            {quizBadges.filter(badge => badge.memberId === currentMember.id).length > 0 && (
+              <button onClick={() => setShowBadgesModal(true)}>View Badges</button>
             )}
           </div>
 
-          {showTicketsModal && (
+          {showBadgesModal && (
             <div className="modal">
               <div className="modal-content">
-                <h3>Your Lottery Tickets</h3>
+                <h3>Your Quiz Badges</h3>
                 <ul>
-                  {lotteryTickets
-                    .filter(ticket => ticket.memberId === currentMember.id)
-                    .map((ticket, index) => (
-                      <li key={index}>{ticket.number}</li>
+                  {quizBadges
+                    .filter(badge => badge.memberId === currentMember.id)
+                    .map((badge, index) => (
+                      <li key={index}>{badge.number}</li>
                     ))}
                 </ul>
-                <button onClick={() => setShowTicketsModal(false)}>Close</button>
+                <button onClick={() => setShowBadgesModal(false)}>Close</button>
               </div>
             </div>
           )}
 
           <div className="voting-form">
-            <h3>Vote for Next Week's Game</h3>
+            <h3>Vote for Next Week's Learning Game</h3>
             {!voteSubmitted ? (
               <form onSubmit={(e) => { e.preventDefault(); handleVote(userVote); }}>
                 {pollOptions.map((option) => (
@@ -734,13 +731,13 @@ const Dashboard = () => {
           <div className="leaderboard">
             <h2>Club Leaderboard</h2>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={members.sort((a, b) => b.currency - a.currency)}>
+              <BarChart data={members.sort((a, b) => b.points - a.points)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="currency" fill="#8884d8" name={CURRENCY_NAME} />
+                <Bar dataKey="points" fill="#8884d8" name={CURRENCY_NAME} />
               </BarChart>
             </ResponsiveContainer>
           </div>

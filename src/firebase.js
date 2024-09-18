@@ -3,15 +3,16 @@ import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-aut
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDK4bZaMjjctDjdG-8rdDkczPHA8tbMl_0",
-  authDomain: "my-gamble.firebaseapp.com",
-  projectId: "my-gamble",
-  storageBucket: "my-gamble.appspot.com",
-  messagingSenderId: "362532353546",
-  appId: "1:362532353546:web:0cf16960c9a8b61e0311f3",
-  measurementId: "G-0C4YZXG76G"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: "stats-club-dashboard.firebaseapp.com",
+  projectId: "stats-club-dashboard",
+  storageBucket: "stats-club-dashboard.appspot.com",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app)
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+export { auth, app, db };
