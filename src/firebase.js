@@ -3,12 +3,13 @@ import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-aut
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: "stats-club-dashboard.firebaseapp.com",
-  projectId: "stats-club-dashboard",
-  storageBucket: "stats-club-dashboard.appspot.com",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  apiKey: "AIzaSyDK4bZaMjjctDjdG-8rdDkczPHA8tbMl_0",
+  authDomain: "my-gamble.firebaseapp.com",
+  databaseURL: "https://my-gamble-default-rtdb.firebaseio.com",
+  projectId: "my-gamble",
+  storageBucket: "my-gamble.appspot.com",
+  messagingSenderId: "362532353546",
+  appId: "1:362532353546:web:0cf16960c9a8b61e0311f3",
 };
 
 const app = initializeApp(firebaseConfig);
