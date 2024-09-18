@@ -1,13 +1,16 @@
 {
-  "name": "my-stats",
+  "name": "stats-club-dashboard",
   "version": "0.2.0",
   "description": "An educational statistics dashboard for learning and tracking progress",
   "private": true,
-  "homepage": ".",
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/material": "^5.14.10",
+    "@mui/system": "^5.14.10",
+    "@mui/utils": "^5.14.10",
+    "@mui/private-theming": "^5.14.10",
+    "@mui/styled-engine": "^5.14.10",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
