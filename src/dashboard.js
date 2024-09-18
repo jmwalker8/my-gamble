@@ -12,6 +12,7 @@ const STARTING_BALANCE = 100;
 const LOTTERY_DRAW_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
 const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
 const CURRENCY_NAME = 'GambleCoins';
+const firestore = getFirestore();
 
 // Parse initial members from environment variable
 const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]').map(member => ({
@@ -116,40 +117,26 @@ const Dashboard = () => {
     };
   }, [nextLotteryDraw, nextPollReset]);
 
-  const [db, setDb] = useState(null);
-
   useEffect(() => {
-    const firestore = getFirestore();
-    setDb(firestore);
+    syncUsersWithFirebase();
   }, []);
 
-  useEffect(() => {
-    if (db) {
-      syncUsersWithFirebase();
-    }
-  }, [db]);
-
   const syncUsersWithFirebase = async () => {
-    if (!db) return;
-  
     try {
-      const usersCollection = collection(db, 'users');
+      const usersCollection = collection(firestore, 'users');
       const userSnapshot = await getDocs(usersCollection);
       const firebaseUsers = userSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
   
-      // Update local state to match Firebase users
       setMembers(firebaseUsers);
   
-      // Update currentMember if it exists in the new set of users
       if (currentMember) {
         const updatedCurrentMember = firebaseUsers.find(user => user.id === currentMember.id);
         if (updatedCurrentMember) {
           setCurrentMember(updatedCurrentMember);
         } else {
-          // Current member was deleted, log out
           handleLogout();
         }
       }
@@ -216,8 +203,7 @@ const Dashboard = () => {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       const user = userCredential.user;
       
-      // Fetch user data from Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         setCurrentMember({id: user.uid, ...userData});
@@ -429,14 +415,12 @@ const Dashboard = () => {
         lastPlayedGames: {}
       };
   
-      // Add user to Firestore
-      await setDoc(doc(db, 'users', user.uid), newMember);
+      await setDoc(doc(firestore, 'users', user.uid), newMember);
   
       setCurrentMember(newMember);
       setIsLoggedIn(true);
       setShowSignUp(false);
   
-      // Sync with Firebase to update the members list
       syncUsersWithFirebase();
   
       alert('Account created successfully! Welcome to the Stats in Gambling Club!');
@@ -457,18 +441,17 @@ const Dashboard = () => {
 
   const deleteMember = async (memberId) => {
     try {
-      // Delete from Firestore
-      await deleteDoc(doc(db, 'users', memberId));
-
-      // Delete from local state
+      await deleteDoc(doc(firestore, 'users', memberId));
+  
       setMembers(prevMembers => prevMembers.filter(member => member.id !== memberId));
-
-      // If the deleted member is the current user, log them out
+  
       if (currentMember && currentMember.id === memberId) {
         handleLogout();
       }
     } catch (error) {
       console.error('Error deleting member:', error);
+      // You might want to add some user feedback here, e.g.:
+      // alert('Failed to delete member. Please try again.');
     }
   };
 
