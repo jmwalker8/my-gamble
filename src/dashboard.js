@@ -292,16 +292,15 @@ const Dashboard = () => {
         : member
     ));
     if (currentMember && memberId === currentMember.id) {
-      setMembers(prevMembers => {
-        const updatedMembers = [...prevMembers, newMember];
-        const loggedInMember = updatedMembers.find(m => m.email === newMember.email);
-        if (loggedInMember) {
-          setIsLoggedIn(true);
-          setUserVote(votes[loggedInMember.id] || '');
-          setVoteSubmitted(!!votes[loggedInMember.id]);
-        }
-        return updatedMembers;
-      });
+      setCurrentMember(prevMember => ({
+        ...prevMember,
+        currency: Math.max(0, Number(prevMember.currency) + Number(amount)),
+        transactions: [...prevMember.transactions, { 
+          amount: Number(amount), 
+          date: new Date().toISOString(),
+          reason: reason
+        }]
+      }));
     }
     checkAchievements(memberId);
   };
