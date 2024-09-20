@@ -31,9 +31,9 @@ const achievements = [
 ];
 
 const games = [
-  { id: 'mathquiz', name: 'Math Quiz', cooldown: 5 * 60 * 1000, minPoints: 10, maxPoints: 100 },
-  { id: 'spellingbee', name: 'Spelling Bee', cooldown: 10 * 60 * 1000, minPoints: 20, maxPoints: 200 },
-  { id: 'sciencetrivia', name: 'Science Trivia', cooldown: 15 * 60 * 1000, minPoints: 50, maxPoints: 500 },
+  { id: 'mathquiz', name: 'Poker', cooldown: 5 * 60 * 1000, minPoints: 10, maxPoints: 100 },
+  { id: 'spellingbee', name: 'Sports Betting', cooldown: 10 * 60 * 1000, minPoints: 20, maxPoints: 200 },
+  { id: 'sciencetrivia', name: 'Card Games', cooldown: 15 * 60 * 1000, minPoints: 50, maxPoints: 500 },
 ];
 
 const Dashboard = () => {
@@ -617,8 +617,8 @@ const Dashboard = () => {
             <p>Current Balance: {currentMember.points} {CURRENCY_NAME}</p>
             <p>Your Rank: {getMemberRank(currentMember.id)} / {members.length}</p>
             <div className="action-buttons">
-              <button onClick={() => setShowGameModal(true)} className="game-button">Play Learning Games</button>
-              <button onClick={earnQuizBadge} className="quiz-button">Earn Quiz Badge (100 {CURRENCY_NAME})</button>
+              <button onClick={() => setShowGameModal(true)} className="game-button">Play Games</button>
+              <button onClick={earnQuizBadge} className="quiz-button">Purchase Lottery Ticket (100 {CURRENCY_NAME})</button>
             </div>
             {gameOutcome && <p>{gameOutcome}</p>}
           </div>
@@ -679,9 +679,9 @@ const Dashboard = () => {
           </div>
 
           <div className="quiz-info">
-            <h2>Weekly Quiz</h2>
+            <h2>Weekly Lottery</h2>
             <p>Current Prize Pool: {quizPool} {CURRENCY_NAME}</p>
-            <p>Next Quiz: {new Date(nextQuiz).toLocaleString()}</p>
+            <p>Next Draw: {new Date(nextQuiz).toLocaleString()}</p>
             <p>Your Badges: {quizBadges.filter(badge => badge.memberId === currentMember.id).length}</p>
             {quizBadges.filter(badge => badge.memberId === currentMember.id).length > 0 && (
               <button onClick={() => setShowBadgesModal(true)}>View Badges</button>
