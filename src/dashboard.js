@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
-import { collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js';
-import { auth, app, db } from './firebase.js';
+import { auth, db } from './firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  updateProfile 
+} from 'firebase/auth';
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  getDoc 
+} from 'firebase/firestore';
 import SignUp from './sign_up.js';
 import './dashboard.css';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';;
 
 // INITIAL DATA
 
@@ -127,21 +139,29 @@ const Dashboard = () => {
     syncUsersWithFirebase();
   }, []);
 
+  
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         // User is signed in
-        const member = members.find(m => m.email === user.email);
-        if (member) {
-          setCurrentMember(member);
-          setIsLoggedIn(true);
-          setUserVote(votes[member.id] || '');
-          setVoteSubmitted(!!votes[member.id]);
-        }
-        // Check if the logged-in user is the admin
-        if (user.email === 'admin@statsclub.com') {
+        if (user.email === 'jmicaw318@gmail.com') {
           setIsAdmin(true);
           setIsLoggedIn(true);
+          setCurrentMember(null);
+        } else {
+          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setCurrentMember({id: user.uid, ...userData});
+            setIsLoggedIn(true);
+            setUserVote(votes[user.uid] || '');
+            setVoteSubmitted(!!votes[user.uid]);
+          } else {
+            // Handle case where user exists in Auth but not in Firestore
+            console.error('User exists in Auth but not in Firestore');
+            handleLogout(); // or create a new user document
+          }
+          setIsAdmin(false);
         }
       } else {
         // User is signed out
@@ -152,7 +172,7 @@ const Dashboard = () => {
     });
   
     return () => unsubscribe();
-  }, [members, votes, db]);
+  }, [votes]);
 
   useEffect(() => {
     localStorage.setItem('statsClubMembers', JSON.stringify(members));
@@ -180,7 +200,7 @@ const Dashboard = () => {
 
   const syncUsersWithFirebase = async () => {
     try {
-      const usersCollection = collection(firestore, 'users');
+      const usersCollection = collection(db, 'users');
       const userSnapshot = await getDocs(usersCollection);
       const firebaseUsers = userSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -189,24 +209,34 @@ const Dashboard = () => {
   
       setMembers(firebaseUsers);
   
-      if (currentMember) {
-        const updatedCurrentMember = firebaseUsers.find(user => user.id === currentMember.id);
-        if (updatedCurrentMember) {
-          setCurrentMember(updatedCurrentMember);
-        } else {
-          handleLogout();
+      if (auth.currentUser) {
+        const currentUserDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (currentUserDoc.exists()) {
+          setCurrentMember({id: auth.currentUser.uid, ...currentUserDoc.data()});
+          setIsLoggedIn(true);
         }
       }
     } catch (error) {
       console.error('Error syncing users with Firebase:', error);
     }
   };
+  
+  
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError('');
     try {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       const user = userCredential.user;
+      
+      // Check if the user is an admin
+      if (user.email === 'jmicaw318@gmail.com') {
+        setIsAdmin(true);
+        setIsLoggedIn(true);
+        setCurrentMember(null); // Admin is not a regular member
+        return; // Exit the function early for admin
+      }
       
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       if (userDoc.exists()) {
@@ -215,15 +245,31 @@ const Dashboard = () => {
         setIsLoggedIn(true);
         setUserVote(votes[user.uid] || '');
         setVoteSubmitted(!!votes[user.uid]);
-      } else if (user.email === 'admin@statsclub.com') {
-        setIsAdmin(true);
-        setIsLoggedIn(true);
       } else {
-        setLoginError('User data not found');
+        // If user auth exists but no Firestore document, create one
+        const newMember = {
+          id: user.uid,
+          name: user.displayName || 'New Member',
+          email: user.email,
+          points: STARTING_POINTS,
+          activities: [],
+          achievements: [],
+          lastPlayedGames: {}
+        };
+        await setDoc(doc(firestore, 'users', user.uid), newMember);
+        setCurrentMember(newMember);
+        setIsLoggedIn(true);
       }
+      setIsAdmin(false); // Ensure non-admin users have admin status set to false
     } catch (error) {
       console.error('Error logging in:', error);
-      setLoginError('Invalid credentials');
+      if (error.code === 'auth/user-not-found') {
+        setLoginError('No user found with this email');
+      } else if (error.code === 'auth/wrong-password') {
+        setLoginError('Incorrect password');
+      } else {
+        setLoginError('Invalid email or password');
+      }
     }
   };
 
@@ -415,13 +461,11 @@ const Dashboard = () => {
         lastPlayedGames: {}
       };
   
-      await setDoc(doc(firestore, 'users', user.uid), newMember);
+      await setDoc(doc(db, 'users', user.uid), newMember);
   
       setCurrentMember(newMember);
       setIsLoggedIn(true);
       setShowSignUp(false);
-  
-      syncUsersWithFirebase();
   
       alert('Account created successfully! Welcome to the Stats Club!');
   
@@ -431,6 +475,8 @@ const Dashboard = () => {
       return { success: false, error: error.message };
     }
   };
+  
+  
 
   // Admin functions
   const resetMemberPoints = (memberId) => {
