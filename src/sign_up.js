@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { createUserWithEmailAndPassword, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
-import { auth } from './firebase.js';
+// Remove unused imports
+// import { createUserWithEmailAndPassword, updateProfile } from 'https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js';
+// import { auth } from './firebase.js';
 
 const SignUp = ({ onSignUp, onCancel }) => {
   const [name, setName] = useState('');
@@ -13,7 +14,6 @@ const SignUp = ({ onSignUp, onCancel }) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
     if (name && email && password) {
       try {
         const result = await onSignUp({ name, email, password });
@@ -29,7 +29,6 @@ const SignUp = ({ onSignUp, onCancel }) => {
     } else {
       setError('Please fill in all fields');
     }
-
     setIsLoading(false);
   };
 
