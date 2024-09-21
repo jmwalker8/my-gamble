@@ -27,15 +27,6 @@ const LOTTERY_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
 const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
 const CURRENCY_NAME = 'Chips';
 
-// Parse initial players from environment variable
-const initialPlayers = JSON.parse(process.env.REACT_APP_INITIAL_PLAYERS || '[]').map(player => ({
-  ...player,
-  chips: STARTING_CHIPS,
-  bets: [],
-  achievements: [],
-  lastPlayedGames: {}
-}));
-
 const achievements = [
   { id: 1, name: 'High Roller', description: 'Reach 20000 chips', threshold: 20000 },
   { id: 2, name: 'Lucky Streak', description: 'Win 5 bets in a row', threshold: 5 },
@@ -48,31 +39,11 @@ const games = [
 ];
 
 const Dashboard = () => {
-  const [players, setPlayers] = useState(() => {
-    const savedPlayers = localStorage.getItem('casinoClubPlayers');
-    return savedPlayers ? JSON.parse(savedPlayers) : initialPlayers;
-  });
-  
-  const [lotteryPool, setLotteryPool] = useState(() => {
-    const savedPool = localStorage.getItem('casinoClubLotteryPool');
-    return savedPool ? Number(savedPool) : 1000;
-  });
-
-  const [lotteryTickets, setLotteryTickets] = useState(() => {
-    const savedTickets = localStorage.getItem('casinoClubLotteryTickets');
-    return savedTickets ? JSON.parse(savedTickets) : [];
-  });
-
-  const [nextLottery, setNextLottery] = useState(() => {
-    const savedLotteryTime = localStorage.getItem('casinoClubNextLottery');
-    return savedLotteryTime ? Number(savedLotteryTime) : LOTTERY_TIME;
-  });
-
-  const [votes, setVotes] = useState(() => {
-    const savedVotes = localStorage.getItem('casinoClubVotes');
-    return savedVotes ? JSON.parse(savedVotes) : {};
-  });
-
+  const [players, setPlayers] = useState([]);
+  const [lotteryPool, setLotteryPool] = useState(1000);
+  const [lotteryTickets, setLotteryTickets] = useState([]);
+  const [nextLottery, setNextLottery] = useState(LOTTERY_TIME);
+  const [votes, setVotes] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [chipsChange, setChipsChange] = useState('');
@@ -91,44 +62,31 @@ const Dashboard = () => {
   const [voteSubmitted, setVoteSubmitted] = useState(false);
   const [showTicketsModal, setShowTicketsModal] = useState(false);
   const [jackpot, setJackpot] = useState(1000);
-  const [nextPollReset, setNextPollReset] = useState(() => {
-    const savedResetTime = localStorage.getItem('casinoClubNextPollReset');
-    return savedResetTime ? Number(savedResetTime) : new Date().setHours(24, 0, 0, 0); // Midnight tonight
-  });
+  const [nextPollReset, setNextPollReset] = useState(new Date().setHours(24, 0, 0, 0));
 
   useEffect(() => {
-    syncPlayersWithFirebase();
-  }, [syncPlayersWithFirebase]);
+    const fetchInitialData = async () => {
+      try {
+        const playersSnapshot = await getDocs(collection(db, 'users'));
+        const fetchedPlayers = playersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPlayers(fetchedPlayers);
 
-  useEffect(() => {
-    // Check for existing session on component mount
-    const sessionData = sessionStorage.getItem('casinoClubSession');
-    if (sessionData) {
-      const { isAdmin, currentPlayer } = JSON.parse(sessionData);
-      setIsAdmin(isAdmin);
-      setCurrentPlayer(currentPlayer);
-      setIsLoggedIn(true);
-    }
-
-    const lotteryTimer = setInterval(() => {
-      if (Date.now() >= nextLottery) {
-        conductLottery();
+        const votesSnapshot = await getDocs(collection(db, 'votes'));
+        const fetchedVotes = {};
+        votesSnapshot.forEach(doc => {
+          fetchedVotes[doc.id] = doc.data().vote;
+        });
+        setVotes(fetchedVotes);
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
       }
-    }, 60000); // Check every minute
-
-    const pollResetTimer = setInterval(() => {
-      if (Date.now() >= nextPollReset) {
-        resetPoll();
-      }
-    }, 60000); // Check every minute
-
-    return () => {
-      clearInterval(lotteryTimer);
-      clearInterval(pollResetTimer);
     };
-  }, [nextLottery, nextPollReset]);
 
-  useEffect(() => {
+    fetchInitialData();
+
     const unsubscribePlayers = onSnapshot(collection(db, 'users'), (snapshot) => {
       const updatedPlayers = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -152,63 +110,31 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('casinoClubPlayers', JSON.stringify(players));
-  }, [players]);
-
-  useEffect(() => {
-    localStorage.setItem('casinoClubLotteryPool', lotteryPool.toString());
-  }, [lotteryPool]);
-
-  useEffect(() => {
-    localStorage.setItem('casinoClubLotteryTickets', JSON.stringify(lotteryTickets));
-  }, [lotteryTickets]);
-
-  useEffect(() => {
-    localStorage.setItem('casinoClubNextLottery', nextLottery.toString());
-  }, [nextLottery]);
-
-  useEffect(() => {
-    localStorage.setItem('casinoClubVotes', JSON.stringify(votes));
-  }, [votes]);
-
-  useEffect(() => {
-    localStorage.setItem('casinoClubNextPollReset', nextPollReset.toString());
-  }, [nextPollReset]);
-
-  const syncPlayersWithFirebase = useCallback(async () => {
-    const usersCollection = collection(db, 'users');
-    const authUsers = await auth.listUsers();
-    const authUserIds = authUsers.users.map(user => user.uid);
-
-    const snapshot = await getDocs(usersCollection);
-    const firebasePlayers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    // Remove players that are not in Firebase Authentication
-    for (const player of firebasePlayers) {
-      if (!authUserIds.includes(player.id)) {
-        await deleteDoc(doc(db, 'users', player.id));
-      }
+    const sessionData = sessionStorage.getItem('casinoClubSession');
+    if (sessionData) {
+      const { isAdmin, currentPlayer } = JSON.parse(sessionData);
+      setIsAdmin(isAdmin);
+      setCurrentPlayer(currentPlayer);
+      setIsLoggedIn(true);
     }
 
-    // Add missing authenticated users to Firestore
-    for (const authUser of authUsers.users) {
-      if (!firebasePlayers.some(player => player.id === authUser.uid)) {
-        const newPlayer = {
-          id: authUser.uid,
-          name: authUser.displayName || 'New Player',
-          email: authUser.email,
-          chips: STARTING_CHIPS,
-          bets: [],
-          achievements: [],
-          lastPlayedGames: {}
-        };
-        await setDoc(doc(db, 'users', authUser.uid), newPlayer);
+    const lotteryTimer = setInterval(() => {
+      if (Date.now() >= nextLottery) {
+        conductLottery();
       }
-    }
-  }, []);
+    }, 60000);
+
+    const pollResetTimer = setInterval(() => {
+      if (Date.now() >= nextPollReset) {
+        resetPoll();
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(lotteryTimer);
+      clearInterval(pollResetTimer);
+    };
+  }, [nextLottery, nextPollReset]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -217,12 +143,11 @@ const Dashboard = () => {
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       const user = userCredential.user;
       
-      // Check if the user is an admin
       if (user.email === 'jmicaw318@gmail.com') {
         setIsAdmin(true);
         setIsLoggedIn(true);
-        setCurrentPlayer(null); // Admin is not a regular player
-        return; // Exit the function early for admin
+        setCurrentPlayer(null);
+        return;
       }
       
       const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -233,7 +158,6 @@ const Dashboard = () => {
         setUserVote(votes[user.uid] || '');
         setVoteSubmitted(!!votes[user.uid]);
       } else {
-        // If user auth exists but no Firestore document, create one
         const newPlayer = {
           id: user.uid,
           name: user.displayName || 'New Player',
@@ -247,16 +171,10 @@ const Dashboard = () => {
         setCurrentPlayer(newPlayer);
         setIsLoggedIn(true);
       }
-      setIsAdmin(false); // Ensure non-admin users have admin status set to false
+      setIsAdmin(false);
     } catch (error) {
       console.error('Error logging in:', error);
-      if (error.code === 'auth/user-not-found') {
-        setLoginError('No user found with this email');
-      } else if (error.code === 'auth/wrong-password') {
-        setLoginError('Incorrect password');
-      } else {
-        setLoginError('Invalid email or password');
-      }
+      setLoginError('Invalid email or password');
     }
   };
 
@@ -266,6 +184,9 @@ const Dashboard = () => {
       setLoginEmail('');
       setLoginPassword('');
       setUserVote('');
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+      setCurrentPlayer(null);
     } catch (error) {
       console.error('Error signing out: ', error);
     }
@@ -296,32 +217,32 @@ const Dashboard = () => {
     return ticket;
   };
 
-  const updatePlayerChips = (playerId, amount, reason) => {
-    setPlayers(prevPlayers => prevPlayers.map(player => 
-      player.id === playerId 
-        ? { 
-            ...player, 
-            chips: Math.max(0, Number(player.chips) + Number(amount)),
-            bets: [...player.bets, { 
-              chips: Number(amount), 
-              date: new Date().toISOString(),
-              reason: reason
-            }]
-          }
-        : player
-    ));
-    if (currentPlayer && playerId === currentPlayer.id) {
-      setCurrentPlayer(prevPlayer => ({
-        ...prevPlayer,
-        chips: Math.max(0, Number(prevPlayer.chips) + Number(amount)),
-        bets: [...prevPlayer.bets, { 
-          chips: Number(amount), 
-          date: new Date().toISOString(),
-          reason: reason
-        }]
-      }));
+  const updatePlayerChips = async (playerId, amount, reason) => {
+    const playerRef = doc(db, 'users', playerId);
+    const playerDoc = await getDoc(playerRef);
+    if (playerDoc.exists()) {
+      const playerData = playerDoc.data();
+      const newChips = Math.max(0, playerData.chips + amount);
+      const newBet = { 
+        chips: amount, 
+        date: new Date().toISOString(),
+        reason: reason
+      };
+      await setDoc(playerRef, {
+        ...playerData,
+        chips: newChips,
+        bets: [...playerData.bets, newBet]
+      }, { merge: true });
+
+      if (currentPlayer && playerId === currentPlayer.id) {
+        setCurrentPlayer(prevPlayer => ({
+          ...prevPlayer,
+          chips: newChips,
+          bets: [...prevPlayer.bets, newBet]
+        }));
+      }
+      checkAchievements(playerId);
     }
-    checkAchievements(playerId);
   };
   
   const placeBet = (gameId) => {
@@ -377,7 +298,7 @@ const Dashboard = () => {
       updatePlayerChips(currentPlayer.id, -100, "Lottery ticket purchased");
       const newTicket = { playerId: currentPlayer.id, number: generateTicket() };
       setLotteryTickets(prevTickets => [...prevTickets, newTicket]);
-      setLotteryPool(prevPool => prevPool + 50); // 50% of ticket cost goes to pool
+      setLotteryPool(prevPool => prevPool + 50);
     } else {
       setGameOutcome(`Not enough ${CURRENCY_NAME} to buy a lottery ticket.`);
     }
@@ -391,25 +312,26 @@ const Dashboard = () => {
       const winner = players.find(player => player.id === winningTicket.playerId);
       updatePlayerChips(winner.id, lotteryPool, "Lottery win");
       setGameOutcome(`${winner.name} won the lottery prize of ${lotteryPool} ${CURRENCY_NAME}!`);
-      setLotteryPool(1000); // Reset pool
+      setLotteryPool(1000);
     } else {
-      setLotteryPool(prevPool => prevPool * 1.5); // Increase pool if no winner
+      setLotteryPool(prevPool => prevPool * 1.5);
       setGameOutcome("No winner this time. Lottery prize pool increased!");
     }
 
     setLotteryTickets([]);
-    // Set next lottery time to 8:00 PM tomorrow
     setNextLottery(new Date(new Date().setHours(20, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime());
   }, [lotteryTickets, players, lotteryPool]);
 
-  const checkAchievements = (playerId) => {
-    const player = players.find(p => p.id === playerId);
-    if (player) {
+  const checkAchievements = async (playerId) => {
+    const playerRef = doc(db, 'users', playerId);
+    const playerDoc = await getDoc(playerRef);
+    if (playerDoc.exists()) {
+      const playerData = playerDoc.data();
       achievements.forEach(achievement => {
-        if (!player.achievements.includes(achievement.id)) {
-          if (achievement.id === 1 && player.chips >= achievement.threshold) {
+        if (!playerData.achievements.includes(achievement.id)) {
+          if (achievement.id === 1 && playerData.chips >= achievement.threshold) {
             addAchievement(playerId, achievement.id);
-          } else if (achievement.id === 2 && player.bets.slice(-5).every(b => b.chips > 0)) {
+          } else if (achievement.id === 2 && playerData.bets.slice(-5).every(b => b.chips > 0)) {
             addAchievement(playerId, achievement.id);
           }
         }
@@ -417,12 +339,12 @@ const Dashboard = () => {
     }
   };
 
-  const addAchievement = (playerId, achievementId) => {
-    setPlayers(prevPlayers => prevPlayers.map(player =>
-      player.id === playerId
-        ? { ...player, achievements: [...player.achievements, achievementId] }
-        : player
-    ));
+  const addAchievement = async (playerId, achievementId) => {
+    const playerRef = doc(db, 'users', playerId);
+    await setDoc(playerRef, {
+      achievements: [...(players.find(p => p.id === playerId)?.achievements || []), achievementId]
+    }, { merge: true });
+
     if (currentPlayer && playerId === currentPlayer.id) {
       setCurrentPlayer(prevPlayer => ({
         ...prevPlayer,
@@ -463,10 +385,9 @@ const Dashboard = () => {
     }
   };
 
-  // Admin functions
-  const resetPlayerChips = (playerId) => {
+  const resetPlayerChips = async (playerId) => {
     const player = players.find(p => p.id === playerId);
-    updatePlayerChips(playerId, STARTING_CHIPS - player.chips, "Admin reset");
+    await updatePlayerChips(playerId, STARTING_CHIPS - player.chips, "Admin reset");
   };
 
   const deletePlayer = async (playerId) => {
@@ -488,8 +409,8 @@ const Dashboard = () => {
     setLotteryPool(prevPool => Math.max(1000, prevPool + amount));
   };
 
-  const addMoreChips = (playerId, amount = STARTING_CHIPS) => {
-    updatePlayerChips(playerId, amount, "Admin bonus");
+  const addMoreChips = async (playerId, amount = STARTING_CHIPS) => {
+    await updatePlayerChips(playerId, amount, "Admin bonus");
   };
 
   const handleVote = async (option) => {
@@ -499,17 +420,18 @@ const Dashboard = () => {
       setVoteSubmitted(true);
     }
   };
+
   const updatePollOptions = (newOptions) => {
     setPollOptions(newOptions);
-    setVotes({});  // Reset votes when options change
-    setNextPollReset(new Date(new Date().setHours(24, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime()); // Set next reset to midnight tomorrow
+    setVotes({});
+    setNextPollReset(new Date(new Date().setHours(24, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime());
   };
 
   const resetPoll = () => {
     setVotes({});
     setVoteSubmitted(false);
     setUserVote('');
-    setNextPollReset(new Date(new Date().setHours(24, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime()); // Set next reset to midnight tomorrow
+    setNextPollReset(new Date(new Date().setHours(24, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime());
   };
 
   const updateJackpot = (amount) => {
@@ -521,10 +443,10 @@ const Dashboard = () => {
     return sortedPlayers.findIndex(player => player.id === playerId) + 1;
   };
 
-  const awardJackpot = () => {
+  const awardJackpot = async () => {
     const sortedPlayers = [...players].sort((a, b) => b.chips - a.chips);
     if (sortedPlayers.length > 0) {
-      updatePlayerChips(sortedPlayers[0].id, jackpot, "Jackpot win");
+      await updatePlayerChips(sortedPlayers[0].id, jackpot, "Jackpot win");
     }
   };
 
