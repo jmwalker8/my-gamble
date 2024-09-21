@@ -19,29 +19,29 @@ import SignUp from './sign_up.js';
 import './dashboard.css';
 
 // INITIAL DATA
-const STARTING_POINTS = 100;
-const QUIZ_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
-const BADGE_FORMAT = 'LLNNNN'; // L: Letter, N: Number
-const CURRENCY_NAME = 'Points';
+const STARTING_CHIPS = 1000;
+const LOTTERY_TIME = new Date().setHours(20, 0, 0, 0); // 8:00 PM today
+const TICKET_FORMAT = 'LLNNNN'; // L: Letter, N: Number
+const CURRENCY_NAME = 'Chips';
 
 // Parse initial members from environment variable
-const initialMembers = JSON.parse(process.env.REACT_APP_INITIAL_MEMBERS || '[]').map(member => ({
-  ...member,
-  points: STARTING_POINTS,
-  activities: [],
+const initialPlayers = JSON.parse(process.env.REACT_APP_INITIAL_PLAYERS || '[]').map(player => ({
+  ...player,
+  chips: STARTING_CHIPS,
+  bets: [],
   achievements: [],
   lastPlayedGames: {}
 }));
 
 const achievements = [
-  { id: 1, name: 'High Achiever', description: 'Reach 2000 points', threshold: 2000 },
-  { id: 2, name: 'Consistent Learner', description: 'Complete 5 activities in a row', threshold: 5 },
+  { id: 1, name: 'High Roller', description: 'Reach 20000 chips', threshold: 20000 },
+  { id: 2, name: 'Lucky Streak', description: 'Win 5 bets in a row', threshold: 5 },
 ];
 
 const games = [
-  { id: 'mathquiz', name: 'Poker', cooldown: 5 * 60 * 1000, minPoints: 10, maxPoints: 100 },
-  { id: 'spellingbee', name: 'Sports Betting', cooldown: 10 * 60 * 1000, minPoints: 20, maxPoints: 200 },
-  { id: 'sciencetrivia', name: 'Card Games', cooldown: 15 * 60 * 1000, minPoints: 50, maxPoints: 500 },
+  { id: 'poker', name: 'Poker', cooldown: 5 * 60 * 1000, minBet: 100, maxBet: 1000 },
+  { id: 'blackjack', name: 'Blackjack', cooldown: 10 * 60 * 1000, minBet: 200, maxBet: 2000 },
+  { id: 'roulette', name: 'Roulette', cooldown: 15 * 60 * 1000, minBet: 500, maxBet: 5000 },
 ];
 
 const Dashboard = () => {
@@ -185,26 +185,26 @@ const Dashboard = () => {
     localStorage.setItem('statsClubNextPollReset', nextPollReset.toString());
   }, [nextPollReset]);
 
-  const syncUsersWithFirebase = async () => {
+  const syncPlayersWithFirebase = async () => {
     try {
       const usersCollection = collection(db, 'users');
       const userSnapshot = await getDocs(usersCollection);
-      const firebaseUsers = userSnapshot.docs.map(doc => ({
+      const firebasePlayers = userSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
   
-      setMembers(firebaseUsers);
+      setMembers(firebasePlayers);
   
       if (auth.currentUser) {
-        const currentUserDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (currentUserDoc.exists()) {
-          setCurrentMember({id: auth.currentUser.uid, ...currentUserDoc.data()});
+        const currentPlayerDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (currentPlayerDoc.exists()) {
+          setCurrentMember({id: auth.currentUser.uid, ...currentPlayerDoc.data()});
           setIsLoggedIn(true);
         }
       }
     } catch (error) {
-      console.error('Error syncing users with Firebase:', error);
+      console.error('Error syncing players with Firebase:', error);
     }
   };
 
@@ -322,7 +322,7 @@ const Dashboard = () => {
     checkAchievements(memberId);
   };
   
-  const playGame = (gameId) => {
+  const placeBet = (gameId) => {
     const game = games.find(g => g.id === gameId);
     const lastPlayed = currentMember.lastPlayedGames[gameId] || 0;
     
@@ -331,33 +331,33 @@ const Dashboard = () => {
       return;
     }
   
-    if (currentMember.points < game.minPoints) {
-      setGameOutcome(`You don't have enough ${CURRENCY_NAME} to play. Minimum points required: ${game.minPoints}.`);
+    if (currentMember.chips < game.minBet) {
+      setGameOutcome(`You don't have enough ${CURRENCY_NAME} to play. Minimum bet required: ${game.minBet}.`);
       return;
     }
   
-    if (currentMember.points < parseInt(pointsAtStake) || parseInt(pointsAtStake) < game.minPoints || parseInt(pointsAtStake) > game.maxPoints) {
-      setGameOutcome(`Invalid points amount. Min: ${game.minPoints}, Max: ${game.maxPoints}`);
+    if (currentMember.chips < parseInt(pointsAtStake) || parseInt(pointsAtStake) < game.minBet || parseInt(pointsAtStake) > game.maxBet) {
+      setGameOutcome(`Invalid bet amount. Min: ${game.minBet}, Max: ${game.maxBet}`);
       return;
     }
 
-    let pointsEarned = 0;
+    let chipsWon = 0;
     switch (gameId) {
-      case 'mathquiz':
-        pointsEarned = Math.random() > 0.5 ? parseInt(pointsAtStake) : Math.floor(parseInt(pointsAtStake) / 2);
+      case 'poker':
+        chipsWon = Math.random() > 0.5 ? parseInt(pointsAtStake) : -Math.floor(parseInt(pointsAtStake));
         break;
-      case 'spellingbee':
-        pointsEarned = Math.random() > 0.33 ? parseInt(pointsAtStake) : Math.floor(parseInt(pointsAtStake) / 3);
+      case 'blackjack':
+        chipsWon = Math.random() > 0.48 ? parseInt(pointsAtStake) : -Math.floor(parseInt(pointsAtStake));
         break;
-      case 'sciencetrivia':
-        pointsEarned = Math.random() > 0.2 ? parseInt(pointsAtStake) * 2 : Math.floor(parseInt(pointsAtStake) / 4);
+      case 'roulette':
+        chipsWon = Math.random() > 0.45 ? parseInt(pointsAtStake) * 2 : -Math.floor(parseInt(pointsAtStake));
         break;
       default:
         break;
     }
 
-    updateMemberPoints(currentMember.id, pointsEarned, `${games.find(g => g.id === gameId).name} game`);
-    setGameOutcome(`You earned ${pointsEarned} ${CURRENCY_NAME}!`);
+    updatePlayerChips(currentMember.id, chipsWon, `${games.find(g => g.id === gameId).name} game`);
+    setGameOutcome(chipsWon >= 0 ? `You won ${chipsWon} ${CURRENCY_NAME}!` : `You lost ${-chipsWon} ${CURRENCY_NAME}.`);
     
     setCurrentMember(prevMember => ({
       ...prevMember,
@@ -370,33 +370,33 @@ const Dashboard = () => {
     setShowGameModal(false);
   };
 
-  const earnQuizBadge = () => {
-    if (currentMember.points >= 100) {
-      updateMemberPoints(currentMember.id, -100, "Quiz badge earned");
-      const newBadge = { memberId: currentMember.id, number: generateBadge() };
-      setQuizBadges(prevBadges => [...prevBadges, newBadge]);
-      setQuizPool(prevPool => prevPool + 50); // 50% of badge cost goes to pool
+  const buyLotteryTicket = () => {
+    if (currentMember.chips >= 100) {
+      updatePlayerChips(currentMember.id, -100, "Lottery ticket purchased");
+      const newTicket = { playerId: currentMember.id, number: generateTicket() };
+      setQuizBadges(prevTickets => [...prevTickets, newTicket]);
+      setQuizPool(prevPool => prevPool + 50); // 50% of ticket cost goes to pool
     } else {
-      setGameOutcome(`Not enough ${CURRENCY_NAME} to earn a quiz badge.`);
+      setGameOutcome(`Not enough ${CURRENCY_NAME} to buy a lottery ticket.`);
     }
   };
 
-  const conductQuiz = useCallback(() => {
-    const winningNumber = generateBadge();
-    const winningBadge = quizBadges.find(badge => badge.number === winningNumber);
+  const conductLottery = useCallback(() => {
+    const winningNumber = generateTicket();
+    const winningTicket = quizBadges.find(ticket => ticket.number === winningNumber);
 
-    if (winningBadge) {
-      const winner = members.find(member => member.id === winningBadge.memberId);
-      updateMemberPoints(winner.id, quizPool, "Quiz win");
-      setGameOutcome(`${winner.name} won the quiz prize of ${quizPool} ${CURRENCY_NAME}!`);
+    if (winningTicket) {
+      const winner = members.find(player => player.id === winningTicket.playerId);
+      updatePlayerChips(winner.id, quizPool, "Lottery win");
+      setGameOutcome(`${winner.name} won the lottery prize of ${quizPool} ${CURRENCY_NAME}!`);
       setQuizPool(1000); // Reset pool
     } else {
       setQuizPool(prevPool => prevPool * 1.5); // Increase pool if no winner
-      setGameOutcome("No winner this time. Quiz prize pool increased!");
+      setGameOutcome("No winner this time. Lottery prize pool increased!");
     }
 
     setQuizBadges([]);
-    // Set next quiz time to 8:00 PM tomorrow
+    // Set next lottery time to 8:00 PM tomorrow
     setNextQuiz(new Date(new Date().setHours(20, 0, 0, 0) + 24 * 60 * 60 * 1000).getTime());
   }, [quizBadges, members, quizPool]);
 
@@ -563,19 +563,89 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <h1 className="dashboard-title">Stats Club Dashboard</h1>
+      <h1 className="dashboard-title">Casino Dashboard</h1>
       <button onClick={handleLogout} className="logout-button">Logout</button>
 
       {isAdmin ? (
         <div className="admin-view">
-          {/* Admin view content */}
+          <h2>Admin Controls</h2>
+          <table className="player-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Chips</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map(player => (
+                <tr key={player.id}>
+                  <td>{player.name}</td>
+                  <td>{player.email}</td>
+                  <td>{player.chips} {CURRENCY_NAME}</td>
+                  <td>
+                    <button onClick={() => handleSelectMember(player)}>Select</button>
+                    <button onClick={() => resetMemberPoints(player.id)}>Reset Chips</button>
+                    <button onClick={() => deleteMember(player.id)}>Delete</button>
+                    <button onClick={() => addMorePoints(player.id)}>Add {STARTING_CHIPS} {CURRENCY_NAME}</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {selectedMember && (
+            <div className="chips-update">
+              <input
+                type="number"
+                value={pointsChange}
+                onChange={(e) => setPointsChange(e.target.value)}
+                placeholder="Enter amount"
+              />
+              <button onClick={handlePointsChange}>Update Chips</button>
+            </div>
+          )}
+          <div className="lottery-control">
+            <h3>Lottery Control</h3>
+            <p>Current Jackpot: {quizPool} {CURRENCY_NAME}</p>
+            <button onClick={() => adjustQuizPool(1000)}>Increase Jackpot</button>
+            <button onClick={() => adjustQuizPool(-1000)}>Decrease Jackpot</button>
+            <button onClick={conductLottery}>Force Lottery Draw Now</button>
+          </div>
+          <div className="poll-control">
+            <h3>Update Game Options</h3>
+            <input
+              type="text"
+              placeholder="Enter options, separated by commas"
+              onChange={(e) => updatePollOptions(e.target.value.split(',').map(o => o.trim()))}
+            />
+          </div>
+          <div className="poll-results">
+            <h3>Current Game Popularity</h3>
+            {pollOptions.map(option => (
+              <div key={option}>
+                {option}: {Object.values(votes).filter(v => v === option).length}
+              </div>
+            ))}
+          </div>
+          <div className="jackpot-control">
+            <h3>Jackpot Control</h3>
+            <p>Current Jackpot: {firstPlacePrize} {CURRENCY_NAME}</p>
+            <input
+              type="number"
+              value={firstPlacePrize}
+              onChange={(e) => updateFirstPlacePrize(Number(e.target.value))}
+              placeholder="Enter new jackpot amount"
+            />
+            <button onClick={awardFirstPlacePrize}>Award Jackpot</button>
+          </div>
         </div>
       ) : currentMember ? (
-        <div className="member-view">
-          {/* Member view content */}
+        <div className="player-view">
+          {/* Player view content - implement this similarly to the previous member view */}
         </div>
       ) : (
-        <div>Error: No member data available</div>
+        <div>Error: No player data available</div>
       )}
     </div>
   );
