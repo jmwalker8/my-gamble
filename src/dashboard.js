@@ -13,7 +13,10 @@ import {
   doc, 
   setDoc, 
   deleteDoc, 
-  getDoc
+  getDoc,
+  onSnapshot,
+  query,
+  where
 } from 'firebase/firestore';
 import SignUp from './sign_up.js';
 import './dashboard.css';
@@ -94,10 +97,8 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    if (players.length === 0) {
-      syncPlayersWithFirebase();
-    }
-  }, [players]);
+    syncPlayersWithFirebase();
+  }, [syncPlayersWithFirebase]);
 
   useEffect(() => {
     // Check for existing session on component mount
@@ -128,38 +129,27 @@ const Dashboard = () => {
   }, [nextLottery, nextPollReset]);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        // User is signed in
-        if (user.email === 'jmicaw318@gmail.com') {
-          setIsAdmin(true);
-          setIsLoggedIn(true);
-          setCurrentPlayer(null);
-        } else {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setCurrentPlayer({id: user.uid, ...userData});
-            setIsLoggedIn(true);
-            setUserVote(votes[user.uid] || '');
-            setVoteSubmitted(!!votes[user.uid]);
-          } else {
-            // Handle case where user exists in Auth but not in Firestore
-            console.error('User exists in Auth but not in Firestore');
-            handleLogout(); // or create a new user document
-          }
-          setIsAdmin(false);
-        }
-      } else {
-        // User is signed out
-        setIsLoggedIn(false);
-        setIsAdmin(false);
-        setCurrentPlayer(null);
-      }
+    const unsubscribePlayers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const updatedPlayers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setPlayers(updatedPlayers);
     });
-  
-    return () => unsubscribe();
-  }, [votes]);
+
+    const unsubscribeVotes = onSnapshot(collection(db, 'votes'), (snapshot) => {
+      const updatedVotes = {};
+      snapshot.docs.forEach(doc => {
+        updatedVotes[doc.id] = doc.data().vote;
+      });
+      setVotes(updatedVotes);
+    });
+
+    return () => {
+      unsubscribePlayers();
+      unsubscribeVotes();
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('casinoClubPlayers', JSON.stringify(players));
@@ -185,28 +175,40 @@ const Dashboard = () => {
     localStorage.setItem('casinoClubNextPollReset', nextPollReset.toString());
   }, [nextPollReset]);
 
-  const syncPlayersWithFirebase = async () => {
-    try {
-      const usersCollection = collection(db, 'users');
-      const userSnapshot = await getDocs(usersCollection);
-      const firebasePlayers = userSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-  
-      setPlayers(firebasePlayers);
-  
-      if (auth.currentUser) {
-        const currentPlayerDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (currentPlayerDoc.exists()) {
-          setCurrentPlayer({id: auth.currentUser.uid, ...currentPlayerDoc.data()});
-          setIsLoggedIn(true);
-        }
+  const syncPlayersWithFirebase = useCallback(async () => {
+    const usersCollection = collection(db, 'users');
+    const authUsers = await auth.listUsers();
+    const authUserIds = authUsers.users.map(user => user.uid);
+
+    const snapshot = await getDocs(usersCollection);
+    const firebasePlayers = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    // Remove players that are not in Firebase Authentication
+    for (const player of firebasePlayers) {
+      if (!authUserIds.includes(player.id)) {
+        await deleteDoc(doc(db, 'users', player.id));
       }
-    } catch (error) {
-      console.error('Error syncing players with Firebase:', error);
     }
-  };
+
+    // Add missing authenticated users to Firestore
+    for (const authUser of authUsers.users) {
+      if (!firebasePlayers.some(player => player.id === authUser.uid)) {
+        const newPlayer = {
+          id: authUser.uid,
+          name: authUser.displayName || 'New Player',
+          email: authUser.email,
+          chips: STARTING_CHIPS,
+          bets: [],
+          achievements: [],
+          lastPlayedGames: {}
+        };
+        await setDoc(doc(db, 'users', authUser.uid), newPlayer);
+      }
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -490,17 +492,13 @@ const Dashboard = () => {
     updatePlayerChips(playerId, amount, "Admin bonus");
   };
 
-  const handleVote = (option) => {
+  const handleVote = async (option) => {
     if (currentPlayer) {
-      setVotes(prevVotes => ({
-        ...prevVotes,
-        [currentPlayer.id]: option
-      }));
+      await setDoc(doc(db, 'votes', currentPlayer.id), { vote: option });
       setUserVote(option);
       setVoteSubmitted(true);
     }
   };
-
   const updatePollOptions = (newOptions) => {
     setPollOptions(newOptions);
     setVotes({});  // Reset votes when options change
