@@ -13,7 +13,8 @@ import {
   doc, 
   setDoc, 
   deleteDoc, 
-  getDoc 
+  getDoc,
+  getFirestore
 } from 'firebase/firestore';
 import SignUp from './sign_up.js';
 import './dashboard.css';
