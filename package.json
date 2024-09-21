@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "description": "An educational statistics dashboard for learning and tracking progress",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
