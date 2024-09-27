@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import SignUp from './sign_up.js';
 import './dashboard.css';
+import BlackjackGame from './blackjack.js';
 
 // INITIAL DATA
 const STARTING_CHIPS = 1000;
@@ -619,48 +620,43 @@ const Dashboard = () => {
           </div>
 
           {showGameModal && (
-            <div className="game-modal">
-              <h3>Select a Game</h3>
-              <div className="game-buttons">
-                {games.map(game => (
-                  <button 
-                    key={game.id} 
-                    onClick={() => setSelectedGame(game)}
-                    disabled={Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown}
-                    className="game-button"
-                  >
-                    {game.name}
-                    {Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown && 
-                      <span className="cooldown">
-                        {Math.ceil((game.cooldown - (Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0))) / 1000)}s
-                      </span>
-                    }
-                  </button>
-                ))}
-              </div>
-              
-              {selectedGame && (
-                <div className="game-ui">
-                  <h4>{selectedGame.name}</h4>
-                  {selectedGame.id === 'poker' && <PokerUI />}
-                  {selectedGame.id === 'blackjack' && <BlackjackUI />}
-                  {selectedGame.id === 'roulette' && <RouletteUI />}
-                  
-                  <div className="betting-area">
-                    <input
-                      type="number"
-                      value={chipsAtStake}
-                      onChange={(e) => setChipsAtStake(e.target.value)}
-                      placeholder={`Chips at stake (${selectedGame.minBet}-${selectedGame.maxBet})`}
-                    />
-                    <button onClick={() => placeBet(selectedGame.id)}>Play {selectedGame.name}</button>
-                  </div>
-                </div>
-              )}
-              
-              <button onClick={() => setShowGameModal(false)} className="close-button">Close</button>
-            </div>
-          )}
+      <div className="game-modal">
+        <h3>Select a Game</h3>
+        <div className="game-buttons">
+          {games.map(game => (
+            <button 
+              key={game.id} 
+              onClick={() => setSelectedGame(game)}
+              disabled={Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown}
+              className="game-button"
+            >
+              {game.name}
+              {Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown && 
+                <span className="cooldown">
+                  {Math.ceil((game.cooldown - (Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0))) / 1000)}s
+                </span>
+              }
+            </button>
+          ))}
+        </div>
+        
+        {selectedGame && (
+          <div className="game-ui">
+            {selectedGame.id === 'blackjack' && (
+              <BlackjackGame 
+                onClose={() => setShowGameModal(false)}
+                onBet={(amount) => updatePlayerChips(currentPlayer.id, amount, "Blackjack game")}
+              />
+            )}
+            {/* Add conditions for other games here */}
+            {selectedGame.id === 'poker' && <PokerUI />}
+            {selectedGame.id === 'roulette' && <RouletteUI />}
+          </div>
+        )}
+        
+        <button onClick={() => setShowGameModal(false)} className="close-button">Close</button>
+      </div>
+    )}
 
           <div className="bets">
             <h2>Bet History</h2>
