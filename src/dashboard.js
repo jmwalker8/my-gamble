@@ -450,6 +450,51 @@ const Dashboard = () => {
     }
   };
 
+  const PokerUI = () => (
+    <div className="poker-table">
+      <div className="community-cards">
+        {['♠A', '♥K', '♦Q', '♣J', '♠10'].map((card, index) => (
+          <div key={index} className="card">{card}</div>
+        ))}
+      </div>
+      <div className="player-hand">
+        <div className="card">♥A</div>
+        <div className="card">♥K</div>
+      </div>
+    </div>
+  );
+
+  const BlackjackUI = () => (
+    <div className="blackjack-table">
+      <div className="dealer-hand">
+        <div className="card">♠?</div>
+        <div className="card">♥10</div>
+      </div>
+      <div className="player-hand">
+        <div className="card">♣A</div>
+        <div className="card">♦8</div>
+      </div>
+    </div>
+  );
+
+  const RouletteUI = () => (
+    <div className="roulette-wheel">
+      <div className="wheel">
+        {[0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26].map((number, index) => (
+          <div key={index} className={`number ${number === 0 ? 'green' : (index % 2 === 0 ? 'black' : 'red')}`}>{number}</div>
+        ))}
+      </div>
+      <div className="betting-options">
+        <button>Red</button>
+        <button>Black</button>
+        <button>Odd</button>
+        <button>Even</button>
+        <button>1-18</button>
+        <button>19-36</button>
+      </div>
+    </div>
+  );
+
   if (showSignUp) {
     return <SignUp onSignUp={handleSignUp} onCancel={() => setShowSignUp(false)} />;
   }
@@ -576,31 +621,44 @@ const Dashboard = () => {
           {showGameModal && (
             <div className="game-modal">
               <h3>Select a Game</h3>
-              {games.map(game => (
-                <div key={game.id}>
+              <div className="game-buttons">
+                {games.map(game => (
                   <button 
+                    key={game.id} 
                     onClick={() => setSelectedGame(game)}
                     disabled={Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown}
+                    className="game-button"
                   >
                     {game.name}
+                    {Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown && 
+                      <span className="cooldown">
+                        {Math.ceil((game.cooldown - (Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0))) / 1000)}s
+                      </span>
+                    }
                   </button>
-                  {Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0) < game.cooldown && 
-                    <span>Cooldown: {Math.ceil((game.cooldown - (Date.now() - (currentPlayer.lastPlayedGames[game.id] || 0))) / 1000)}s</span>
-                  }
-                </div>
-              ))}
+                ))}
+              </div>
+              
               {selectedGame && (
-                <div>
-                  <input
-                    type="number"
-                    value={chipsAtStake}
-                    onChange={(e) => setChipsAtStake(e.target.value)}
-                    placeholder={`Chips at stake (${selectedGame.minBet}-${selectedGame.maxBet})`}
-                  />
-                  <button onClick={() => placeBet(selectedGame.id)}>Play {selectedGame.name}</button>
+                <div className="game-ui">
+                  <h4>{selectedGame.name}</h4>
+                  {selectedGame.id === 'poker' && <PokerUI />}
+                  {selectedGame.id === 'blackjack' && <BlackjackUI />}
+                  {selectedGame.id === 'roulette' && <RouletteUI />}
+                  
+                  <div className="betting-area">
+                    <input
+                      type="number"
+                      value={chipsAtStake}
+                      onChange={(e) => setChipsAtStake(e.target.value)}
+                      placeholder={`Chips at stake (${selectedGame.minBet}-${selectedGame.maxBet})`}
+                    />
+                    <button onClick={() => placeBet(selectedGame.id)}>Play {selectedGame.name}</button>
+                  </div>
                 </div>
               )}
-              <button onClick={() => setShowGameModal(false)}>Close</button>
+              
+              <button onClick={() => setShowGameModal(false)} className="close-button">Close</button>
             </div>
           )}
 

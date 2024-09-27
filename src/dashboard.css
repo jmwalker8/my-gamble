@@ -135,42 +135,161 @@
     transform: translate(-50%, -50%);
     background-color: white;
     padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    max-width: 80%;
+    max-height: 80%;
+    overflow-y: auto;
   }
   
-  .game-modal h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #333;
+  .game-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
   }
   
-  .game-modal button {
-    margin: 5px;
-    padding: 8px 12px;
-    background-color: #008CBA;
+  .game-button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #4CAF50;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 5px;
     cursor: pointer;
+    position: relative;
   }
   
-  .game-modal button:hover {
-    background-color: #007B9A;
-  }
-  
-  .game-modal button:disabled {
-    background-color: #ccc;
+  .game-button:disabled {
+    background-color: #cccccc;
     cursor: not-allowed;
   }
   
-  .game-modal input[type="number"] {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
+  .cooldown {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: #ff4444;
+    color: white;
+    border-radius: 50%;
+    padding: 5px;
+    font-size: 12px;
+  }
+  
+  .game-ui {
+    margin-top: 20px;
+    padding: 20px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 5px;
+  }
+  
+  .betting-area {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 24px;
+    cursor: pointer;
+    background: none;
+    border: none;
+  }
+  
+  /* Poker UI */
+  .poker-table {
+    background-color: #076324;
+    border-radius: 100px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .community-cards, .player-hand {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .card {
+    width: 60px;
+    height: 90px;
+    background-color: white;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  /* Blackjack UI */
+  .blackjack-table {
+    background-color: #076324;
+    border-radius: 100px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .dealer-hand, .player-hand {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  /* Roulette UI */
+  .roulette-wheel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .wheel {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background-color: #32CD32;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .number {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+  }
+  
+  .red { background-color: #FF0000; }
+  .black { background-color: #000000; }
+  .green { background-color: #008000; }
+  
+  .betting-options {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .betting-options button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
   }
   
   .lottery-info {
