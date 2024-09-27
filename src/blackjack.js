@@ -49,7 +49,7 @@ const calculateHandValue = (hand) => {
   return value;
 };
 
-const BlackjackGame = ({ onClose, onBet }) => {
+const BlackjackGame = ({ onClose, onBet, placeBet }) => {
   const [deck, setDeck] = useState([]);
   const [playerHand, setPlayerHand] = useState([]);
   const [dealerHand, setDealerHand] = useState([]);

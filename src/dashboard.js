@@ -748,7 +748,7 @@ const Dashboard = () => {
 
               {selectedGame && (
                 <div className="game-ui">
-                  {selectedGame.id === 'blackjack' && (
+                  {selectedGame && selectedGame.id === 'blackjack' && (
                     <BlackjackGame
                       onClose={() => setShowGameModal(false)}
                       onBet={(amount) =>
