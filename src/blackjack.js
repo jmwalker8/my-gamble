@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
 
 const SUITS = ['♠', '♥', '♦', '♣'];
-const VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const VALUES = [
+  'A',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  'J',
+  'Q',
+  'K',
+];
 
 const createDeck = () => {
-  return SUITS.flatMap(suit => VALUES.map(value => ({ suit, value })));
+  return SUITS.flatMap((suit) => VALUES.map((value) => ({ suit, value })));
 };
 
 const shuffleDeck = (deck) => {
@@ -48,12 +62,14 @@ const BlackjackGame = ({ onClose, onBet }) => {
   }, []);
 
   const dealInitialCards = () => {
-    const newPlayerHand = [deck.pop(), deck.pop()];
-    const newDealerHand = [deck.pop(), deck.pop()];
-    setPlayerHand(newPlayerHand);
-    setDealerHand(newDealerHand);
-    setDeck([...deck]);
-    setGameState('playing');
+    if (placeBet(betAmount)) {
+      const newPlayerHand = [deck.pop(), deck.pop()];
+      const newDealerHand = [deck.pop(), deck.pop()];
+      setPlayerHand(newPlayerHand);
+      setDealerHand(newDealerHand);
+      setDeck([...deck]);
+      setGameState('playing');
+    }
   };
 
   const hit = () => {
@@ -79,10 +95,10 @@ const BlackjackGame = ({ onClose, onBet }) => {
     }
     setDealerHand(newDealerHand);
     setDeck([...deck]);
-    
+
     const playerValue = calculateHandValue(playerHand);
     const dealerValue = calculateHandValue(newDealerHand);
-    
+
     if (dealerValue > 21 || playerValue > dealerValue) {
       setMessage('You win!');
       onBet(betAmount);
@@ -90,7 +106,7 @@ const BlackjackGame = ({ onClose, onBet }) => {
       setMessage('Dealer wins. You lose.');
       onBet(-betAmount);
     } else {
-      setMessage('It\'s a tie!');
+      setMessage("It's a tie!");
     }
     setGameState('gameOver');
   };
@@ -109,10 +125,10 @@ const BlackjackGame = ({ onClose, onBet }) => {
       <h2>Blackjack</h2>
       {gameState === 'betting' && (
         <div>
-          <input 
-            type="number" 
-            value={betAmount} 
-            onChange={(e) => setBetAmount(parseInt(e.target.value))} 
+          <input
+            type="number"
+            value={betAmount}
+            onChange={(e) => setBetAmount(parseInt(e.target.value))}
             min="1"
           />
           <button onClick={dealInitialCards}>Place Bet</button>
@@ -124,14 +140,23 @@ const BlackjackGame = ({ onClose, onBet }) => {
             <div className="player-hand">
               <h3>Your Hand ({calculateHandValue(playerHand)})</h3>
               {playerHand.map((card, index) => (
-                <div key={index} className="card">{card.value}{card.suit}</div>
+                <div key={index} className="card">
+                  {card.value}
+                  {card.suit}
+                </div>
               ))}
             </div>
             <div className="dealer-hand">
-              <h3>Dealer's Hand ({gameState === 'playing' ? '?' : calculateHandValue(dealerHand)})</h3>
+              <h3>
+                Dealer's Hand (
+                {gameState === 'playing' ? '?' : calculateHandValue(dealerHand)}
+                )
+              </h3>
               {dealerHand.map((card, index) => (
                 <div key={index} className="card">
-                  {gameState === 'playing' && index === 0 ? '?' : `${card.value}${card.suit}`}
+                  {gameState === 'playing' && index === 0
+                    ? '?'
+                    : `${card.value}${card.suit}`}
                 </div>
               ))}
             </div>
@@ -156,4 +181,3 @@ const BlackjackGame = ({ onClose, onBet }) => {
 };
 
 export default BlackjackGame;
-

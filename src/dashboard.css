@@ -375,3 +375,132 @@ body {
     gap: 10px;
   }
 }
+
+/* Add these styles at the end of your CSS file */
+
+/* Game-specific styles */
+.blackjack-game,
+.poker-game,
+.roulette-game {
+  background-color: #0a5c36;
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.card {
+  width: 60px;
+  height: 90px;
+  background-color: white;
+  color: black;
+  border: 1px solid black;
+  border-radius: 5px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 24px;
+  margin: 5px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.hands {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+}
+
+.player-hand,
+.dealer-hand {
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.roulette-wheel {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background-color: #016d29;
+  position: relative;
+  overflow: hidden;
+  margin: 20px auto;
+  border: 10px solid #e0d36a;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.number {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  color: white;
+  font-weight: bold;
+}
+
+.red {
+  background-color: #e63946;
+}
+.black {
+  background-color: #1d3557;
+}
+.green {
+  background-color: #2a9d8f;
+}
+
+.betting-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.betting-options button,
+.betting-area button {
+  margin: 5px;
+  padding: 10px 15px;
+  background-color: #e63946;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.betting-options button:hover,
+.betting-area button:hover {
+  background-color: #c1121f;
+}
+
+.betting-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.betting-area input {
+  margin: 5px;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.community-cards,
+.player-hand {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
